@@ -1,0 +1,16 @@
+# 빌드 결과물 및 종속성 제거
+node_modules/
+/.next/
+out/
+build/
+
+# 💥 초특급 보안: 클라우드 연동 비밀키 절대 포함 차단
+.env
+.env.local
+.env.production
+.env.development
+
+# OS 및 에디터 찌꺼기 파일 제거
+.DS_Store
+.idea/
+.vscode/
