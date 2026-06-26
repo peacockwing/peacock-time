@@ -23,18 +23,18 @@ export async function POST(request: Request) {
         finalFamilyCode = `FAM-${randomHex}`; // 예: FAM-A3B94C
       }
 
-      // 🌟 2. 인프라 환경 변수 분기 처리 (여기가 핵심!)
-      // 개발 모드면 로컬 호스트로, 실서버 배포 모드면 render.com 도메인으로 자동 지정
+      // 🌟 2. 인프라 환경 변수 분기 처리
+      // 개발 모드면 로컬 호스트로, 실서버 배포 모드면 지정된 Vercel 도메인으로 자동 지정
       const targetRedirectTo = process.env.NODE_ENV === 'development'
         ? 'http://localhost:3000'
         : 'https://peacock-time.vercel.app';
 
-      // 3. Supabase Auth 회원가입 진행
+      // 3. Supabase Auth 회원가입 진행 (타입 에러 수정 완료)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          redirectTo: targetRedirectTo, // 분기 처리된 주소 주입
+          emailRedirectTo: targetRedirectTo, // 🌟 이 부분을 emailRedirectTo로 변경하여 스펙에 매핑했습니다.
           data: {
             family_code: finalFamilyCode, // 데이터베이스 트리거 연동용 메타데이터
           },
