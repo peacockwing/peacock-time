@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 가져오기 경로를 확인하세요.
+// ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 패키지 및 경로를 확인하세요.
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 
 
 export default function LoginPage() {
@@ -41,17 +41,16 @@ export default function LoginPage() {
         const userEmail = session.user.email || '';
         const finalFamilyCode = familyCode || 'FAM-DEFAULT';
 
-        // 세션 정보를 로컬 스토리지에 세팅 (기존 관제탑 아키텍처 동기화)
+        // 세션 정보를 로컬 스토리지에 세팅
         localStorage.setItem('familyCode', finalFamilyCode);
         localStorage.setItem('userEmail', userEmail);
 
-        // 띵동! 소리 없이 자동으로 메인 대시보드로 진격합니다.
         alert('이메일 인증 완료가 실시간 감지되었습니다! 관제탑으로 자동 입장합니다. 🦚');
         router.push('/');
       }
     });
 
-    // 컴포넌트가 언마운트될 때 리스너를 깔끔하게 해제(Memory Leak 방지)
+    // 컴포넌트가 언마운트될 때 리스너를 해제(Memory Leak 방지)
     return () => {
       subscription.unsubscribe();
     };

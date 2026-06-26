@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+// ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 가져오기 경로를 확인하세요.
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // 인터페이스 정의
 interface BabyLog { id: number; category_name_han: string; event_value: string; event_date: string; event_time: string; display_emoji: string; actor_email: string; }
@@ -11,11 +13,13 @@ interface InventoryItem { id: number; section_name: string; item_name: string; b
 
 export default function DashboardPage() {
   const router = useRouter();
+  const supabase = createClientComponentClient();
+  
   const [familyCode, setFamilyCode] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('parent@example.com');
   
-  // 🚀 어제의 감성을 담은 내비게이션 제어
-  const [activeMenu, setActiveMenu] = useState<'timeline' | 'checklist' | 'inventory'>('timeline'); // 기본: baby_log
+  // 🚀 내비게이션 제어
+  const [activeMenu, setActiveMenu] = useState<'timeline' | 'checklist' | 'inventory'>('timeline');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // 데이터 상태
@@ -23,7 +27,7 @@ export default function DashboardPage() {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   
-  // 입력 폼 (어제의 색감 적용)
+  // 입력 폼
   const [selectedPreset, setSelectedPreset] = useState('FEED_MILK');
   const [eventValue, setEventValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,18 +42,7 @@ export default function DashboardPage() {
     TEMP: { name: '체온측정', emoji: '🌡️', placeholder: '예: 36.5도' },
   };
 
-  useEffect(() => {
-    const code = localStorage.getItem('familyCode');
-    const email = localStorage.getItem('userEmail') || 'parent@example.com';
-    if (!code) { router.push('/login'); } else { setFamilyCode(code); setUserEmail(email); loadMenuData(code, activeMenu); }
-  }, [router, activeMenu]);
-
-  const loadMenuData = (code: string, menu: string) => {
-    if (menu === 'timeline') fetchLogs(code);
-    if (menu === 'checklist') fetchOtherTabs(code, 'checklist', setChecklist);
-    if (menu === 'inventory') fetchOtherTabs(code, 'inventory', setInventory);
-  };
-
+  // 기존 데이터 조회 API 함수들
   const fetchLogs = async (code: string) => {
     const res = await fetch(`/api/baby-log?familyCode=${code}`);
     const data = await res.json();
@@ -62,6 +55,86 @@ export default function DashboardPage() {
     if (data.success) setter(data.data);
   };
 
+  const loadMenuData = (code: string, menu: string) => {
+    if (menu === 'timeline') fetchLogs(code);
+    if (menu === 'checklist') fetchOtherTabs(code, 'checklist', setChecklist);
+    if (menu === 'inventory') fetchOtherTabs(code, 'inventory', setInventory);
+  };
+
+  // 1. 유저 인증 체크 및 기저 데이터 전체 선행 로드
+  useEffect(() => {
+    const code = localStorage.getItem('familyCode');
+    const email = localStorage.getItem('userEmail') || 'parent@example.com';
+    
+    if (!code) { 
+      router.push('/login'); 
+    } else { 
+      setFamilyCode(code); 
+      setUserEmail(email); 
+      
+      // 화면 전환 지연 현상을 방지하기 위해 진입 시 세 탭의 데이터를 미리 긁어옵니다.
+      fetchLogs(code);
+      fetchOtherTabs(code, 'checklist', setChecklist);
+      fetchOtherTabs(code, 'inventory', setInventory);
+    }
+  }, [router]);
+
+  // 메뉴 탭 스위칭 최적화 핸들러
+  useEffect(() => {
+    if (familyCode) {
+      loadMenuData(familyCode, activeMenu);
+    }
+  }, [activeMenu, familyCode]);
+
+  // 🌟 2. [핵심 엔진] 단말기 간 상호작용 실시간 동기화 리스너 파이프라인 심기
+  useEffect(() => {
+    if (!familyCode) return;
+
+    // 대시보드 전 전용 리얼타임 웹소켓 채널 구독 개설
+    const globalChannel = supabase
+      .channel('peacock-space-channel')
+      
+      // A. 타임라인(baby_log) 실시간 관측 스트림
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'baby_log' }, (payload) => {
+        console.log('📡 [타임라인] 실시간 트래픽 포착:', payload);
+        if (payload.eventType === 'INSERT') {
+          setLogs((prev) => [payload.new as BabyLog, ...prev]);
+        }
+        if (payload.eventType === 'UPDATE') {
+          setLogs((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as BabyLog) : item)));
+        }
+        if (payload.eventType === 'DELETE') {
+          setLogs((prev) => prev.filter((item) => item.id !== payload.old.id));
+        }
+      })
+      
+      // B. 미션 체크리스트(checklist) 실시간 관측 스트림
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist' }, (payload) => {
+        console.log('📡 [체크리스트] 실시간 트래픽 포착:', payload);
+        if (payload.eventType === 'UPDATE') {
+          setChecklist((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as ChecklistItem) : item)));
+        }
+        if (payload.eventType === 'INSERT') {
+          setChecklist((prev) => [...prev, payload.new as ChecklistItem]);
+        }
+      })
+      
+      // C. 출산 인벤토리(inventory) 실시간 관측 스트림
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
+        console.log('📡 [인벤토리] 실시간 트래픽 포착:', payload);
+        if (payload.eventType === 'UPDATE') {
+          setInventory((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as InventoryItem) : item)));
+        }
+      })
+      .subscribe();
+
+    // 언마운트 시 소켓 포트 깔끔하게 청소 (리소스 확보)
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [supabase, familyCode]);
+
+  // 데이터 CUD 비동기 핸들러들
   const handleLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!familyCode || !eventValue) return;
@@ -71,20 +144,27 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ familyCode, categoryCode: selectedPreset, categoryNameHan: presets[selectedPreset].name, eventValue, displayEmoji: presets[selectedPreset].emoji, actorEmail: userEmail }),
     });
-    if (res.ok) { setEventValue(''); fetchLogs(familyCode); }
+    if (res.ok) { 
+      setEventValue(''); 
+      // 💡 내 단말기에서 보낸 트래픽도 리얼타임 채널이 INSERT 이벤트를 물어와서 화면에 꽂아주므로 fetchLogs 중복 생략 가능
+    }
     setLoading(false);
   };
 
   const handleChecklistToggle = async (id: number, currentStatus: number) => {
     const nextStatus = currentStatus === 1 ? 0 : 1;
-    const res = await fetch('/api/tabs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTab: 'checklist', id, isCompleted: nextStatus }) });
-    if (res.ok && familyCode) fetchOtherTabs(familyCode, 'checklist', setChecklist);
+    // UI 낙관적 업데이트(UX 고도화): 서버 응답 전에 내 화면 먼저 튕겨주기
+    setChecklist((prev) => prev.map((item) => item.id === id ? { ...item, is_completed: nextStatus } : item));
+    
+    await fetch('/api/tabs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTab: 'checklist', id, isCompleted: nextStatus }) });
   };
 
   const handleInventoryStatus = async (id: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'READY' ? 'BOUGHT' : currentStatus === 'BOUGHT' ? 'GIFT' : 'READY';
-    const res = await fetch('/api/tabs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTab: 'inventory', id, status: nextStatus }) });
-    if (res.ok && familyCode) fetchOtherTabs(familyCode, 'inventory', setInventory);
+    // UI 낙관적 업데이트(UX 고도화)
+    setInventory((prev) => prev.map((item) => item.id === id ? { ...item, status: nextStatus } : item));
+    
+    await fetch('/api/tabs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTab: 'inventory', id, status: nextStatus }) });
   };
 
   const handleLogout = () => { localStorage.clear(); router.push('/login'); };
@@ -94,7 +174,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col font-sans selection:bg-orange-500/30">
       
-      {/* 🚀 1. 상단 글로벌 관제 헤더 (어제의 감성 그대로) */}
+      {/* 🚀 1. 상단 글로벌 관제 헤더 */}
       <header className="h-16 border-b border-slate-900 bg-[#020617]/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-40">
         <div className="flex items-center gap-5">
           <button 
@@ -122,7 +202,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* 🚀 2. 사이드바 (어제의 메뉴 구성 이식) */}
+      {/* 🚀 2. 사이드바 */}
       <div 
         className={`fixed inset-0 z-50 transition-all duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
@@ -154,7 +234,7 @@ export default function DashboardPage() {
               className={`w-full group flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${activeMenu === 'inventory' ? 'bg-orange-500 text-[#020617] shadow-lg shadow-orange-500/20' : 'text-slate-400 hover:bg-slate-900'}`}
             >
               <span className="text-xl">📦</span>
-              <span className="font-bold tracking-tight text-base">출산 인벤토리</span>
+              <span className="font-bold tracking-tight text-base">출산 준비 인벤토리</span>
             </button>
           </nav>
 
@@ -170,7 +250,7 @@ export default function DashboardPage() {
         </aside>
       </div>
 
-      {/* 🚀 3. 메인 관제 콘텐츠 (어제의 그리드 시스템 이식) */}
+      {/* 🚀 3. 메인 관제 콘텐츠 */}
       <main className="flex-grow p-5 md:p-10 max-w-6xl mx-auto w-full">
         
         {/* Baby Log (기본 페이지) */}
@@ -241,7 +321,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 탭 전환 로직 (Checklist, Inventory) - 어제의 표/리스트 UI 그대로 적용 */}
+        {/* 📋 탭 전환 로직: 아빠 필수 미션 */}
         {activeMenu === 'checklist' && (
           <div className="bg-slate-900/40 border border-slate-800/60 rounded-[40px] p-10 animate-in zoom-in-95 duration-500 shadow-2xl">
             <h2 className="text-2xl font-black text-white mb-10 flex items-center gap-4">
@@ -265,6 +345,7 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* 📦 탭 전환 로직: 출산 준비 인벤토리 */}
         {activeMenu === 'inventory' && (
           <div className="bg-slate-900/40 border border-slate-800/60 rounded-[40px] p-10 animate-in zoom-in-95 duration-500 shadow-2xl overflow-hidden">
             <h2 className="text-2xl font-black text-white mb-10 flex items-center gap-4">
@@ -299,7 +380,7 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* 🚀 커스텀 스크롤바 & 애니메이션 (어제의 완성도 유지) */}
+      {/* 🚀 커스텀 스크롤바 & 애니메이션 */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
