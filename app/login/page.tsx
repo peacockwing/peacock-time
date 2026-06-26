@@ -4,11 +4,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 // ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 패키지 및 경로를 확인하세요.
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 
+// import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 
+import { supabase } from '../../lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  // const supabase = createClient();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

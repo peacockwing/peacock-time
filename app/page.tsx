@@ -4,7 +4,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 // ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 가져오기 경로를 확인하세요.
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+// import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '../lib/supabase';
 
 // 인터페이스 정의
 interface BabyLog { id: number; category_name_han: string; event_value: string; event_date: string; event_time: string; display_emoji: string; actor_email: string; }
@@ -13,7 +14,7 @@ interface InventoryItem { id: number; section_name: string; item_name: string; b
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  // const supabase = createClient();
   
   const [familyCode, setFamilyCode] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('parent@example.com');
