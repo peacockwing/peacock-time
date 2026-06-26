@@ -1,11 +1,15 @@
 // app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+// ⚠️ 중요: 프로젝트에서 사용 중인 Supabase 클라이언트 가져오기 경로를 확인하세요.
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClientComponentClient();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [targetFamilyCode, setTargetFamilyCode] = useState('');
@@ -14,6 +18,45 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // 🌟 [실시간 관측 훅] 이메일 인증 완료 시 자동 로그인 처리
+  useEffect(() => {
+    // Supabase 인증 상태 변화를 실시간으로 감시하는 리스너 등록
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // 사용자가 메일 링크를 클릭하여 'SIGNED_IN' 상태가 되었을 때 작동
+      if (event === 'SIGNED_IN' && session?.user) {
+        
+        // 사용자의 메타데이터나 프로필 테이블에서 가족 코드를 획득합니다.
+        let familyCode = session.user.user_metadata?.family_code;
+
+        // 만약 메타데이터에 없다면 DB 테이블(user_profiles)에서 한 번 더 크로스 체크
+        if (!familyCode) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('family_code')
+            .eq('id', session.user.id)
+            .single();
+          familyCode = profile?.family_code;
+        }
+
+        const userEmail = session.user.email || '';
+        const finalFamilyCode = familyCode || 'FAM-DEFAULT';
+
+        // 세션 정보를 로컬 스토리지에 세팅 (기존 관제탑 아키텍처 동기화)
+        localStorage.setItem('familyCode', finalFamilyCode);
+        localStorage.setItem('userEmail', userEmail);
+
+        // 띵동! 소리 없이 자동으로 메인 대시보드로 진격합니다.
+        alert('이메일 인증 완료가 실시간 감지되었습니다! 관제탑으로 자동 입장합니다. 🦚');
+        router.push('/');
+      }
+    });
+
+    // 컴포넌트가 언마운트될 때 리스너를 깔끔하게 해제(Memory Leak 방지)
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -21,7 +64,6 @@ export default function LoginPage() {
     setSuccessMessage('');
 
     try {
-      // 🚀 백엔드 API(/api/auth)로 로그인/가입 요청 전송
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,11 +77,8 @@ export default function LoginPage() {
       }
 
       if (isSignUp) {
-        // 회원가입 모드일 때
-        setSuccessMessage('보안 메일 인증 링크가 발송되었습니다! 메일함을 확인하여 인증을 완료해 주세요. 🦚');
-        alert('가입 승인 대기 중: 이메일 인증을 완료해야 로그인이 활성화됩니다.');
+        setSuccessMessage('보안 메일 인증 링크가 발송되었습니다! 이 창을 켜둔 채로 메일함에서 링크를 클릭하시면 화면이 자동으로 전환됩니다. 🦚');
       } else {
-        // 로그인 모드일 때 (세션 세팅 후 메인 관제탑으로 진입)
         alert('로그인 성공! 관제탑 입장');
         localStorage.setItem('familyCode', data.user.familyCode);
         localStorage.setItem('userEmail', email);
@@ -57,7 +96,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
         
-        {/* 브랜딩 타이틀 */}
+        {/* 시그니처 상용 브랜딩 타이틀 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-orange-400">
             PEACOCK TIME
