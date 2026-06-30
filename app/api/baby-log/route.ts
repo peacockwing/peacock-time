@@ -1,6 +1,6 @@
 // app/api/baby-log/route.ts
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 import { broadcastSocketAction } from '../../../lib/socketBroadcast';
 
 // 1. 실시간 로그 조회 (GET)
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '가족 코드가 누락되었습니다.' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('baby_log')
       .select('*')
       .eq('family_code', familyCode)
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const event_time = kstDate.toISOString().slice(11, 16); // HH:MM
 
     // Supabase DB Insert 통신
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('baby_log')
       .insert([
         {

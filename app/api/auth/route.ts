@@ -1,7 +1,7 @@
 // app/api/auth/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export async function POST(request: Request) {
   try {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     if (signInError) throw signInError;
 
     // 로그인이 성공하면 user_profiles 테이블에서 유저의 가족 코드를 가져옵니다.
-    const { data: profileData, error: profileError } = await supabaseAdmin
+    const { data: profileData, error: profileError } = await getSupabaseAdmin()
       .from('user_profiles')
       .select('family_code, user_name')
       .eq('id', signInData.user?.id)

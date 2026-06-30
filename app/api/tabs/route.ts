@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 import { broadcastSocketAction } from '../../../lib/socketBroadcast';
 
 const CHECKLIST_TABLE = 'checklist';
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     }
 
     const table = targetTab === 'checklist' ? CHECKLIST_TABLE : INVENTORY_TABLE;
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from(table)
       .select('*')
       .eq('family_code', familyCode)
@@ -59,7 +59,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: '업데이트할 필드가 없습니다.' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from(table)
       .update(updateData)
       .eq('id', id)

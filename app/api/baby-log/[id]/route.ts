@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { broadcastSocketAction } from '../../../../lib/socketBroadcast';
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +17,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ success: false, error: 'familyCode는 필수입니다.' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('baby_log')
       .delete()
       .eq('id', numericId)

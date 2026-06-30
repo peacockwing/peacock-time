@@ -3,6 +3,7 @@ node_modules/
 /.next/
 out/
 build/
+tsconfig.tsbuildinfo
 
 # 💥 초특급 보안: 클라우드 연동 비밀키 절대 포함 차단
 .env
