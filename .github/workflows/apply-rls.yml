@@ -1,0 +1,26 @@
+name: Apply Supabase RLS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-rls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply RLS policies
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          if [ -z "$DB_CONNECTION_STRING" ]; then
+            echo "ERROR: DB_CONNECTION_STRING secret is not set"
+            exit 1
+          fi
+          echo "Applying deploy/supabase/rls_policies.sql"
+          psql "$DB_CONNECTION_STRING" -f deploy/supabase/rls_policies.sql
