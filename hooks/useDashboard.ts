@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { fetchBabyLogs, createBabyLog, deleteBabyLog, analyzeCry } from '../services/babyLogService';
@@ -37,7 +36,8 @@ export const useDashboard = () => {
   const [sleepTimerText, setSleepTimerText] = useState('00시간 00분째');
   const [sleepTimerTitle, setSleepTimerTitle] = useState('깨어난 지');
   const lastSleepLogRef = useRef<BabyLog | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  // Socket.IO client removed: using Supabase Realtime only
+  const socketRef = useRef<any | null>(null);
 
   useEffect(() => {
     let lastFeed = '수유 기록 없음';
@@ -131,31 +131,7 @@ export const useDashboard = () => {
   useEffect(() => {
     if (!familyCode || familyCode === 'undefined' || familyCode === 'null') return;
 
-    // connect to Socket.IO server for cross-browser broadcasts
-    try {
-      if (!socketRef.current) {
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || `http://localhost:${process.env.SOCKET_PORT || 3001}`;
-        socketRef.current = io(socketUrl, { transports: ['websocket'] });
-      }
-      socketRef.current.emit('join', familyCode);
-
-      socketRef.current.on('new_log', (log: BabyLog) => {
-        console.debug('[socket] new_log', log);
-        setLogs((prev) => [log, ...prev.filter((p) => p.id !== log.id)]);
-      });
-
-      socketRef.current.on('update_log', (log: BabyLog) => {
-        console.debug('[socket] update_log', log);
-        setLogs((prev) => prev.map((item) => (item.id === log.id ? log : item)));
-      });
-
-      socketRef.current.on('delete_log', ({ id }: { id: number }) => {
-        console.debug('[socket] delete_log', id);
-        setLogs((prev) => prev.filter((item) => item.id !== id));
-      });
-    } catch (err) {
-      console.warn('Socket.IO client failed to connect', err);
-    }
+    // Socket.IO client removed; Supabase Realtime subscription handles updates.
 
     const channel = supabase
       .channel('peacock-space-channel', {
@@ -244,10 +220,6 @@ export const useDashboard = () => {
 
     return () => {
       supabase.removeChannel(channel);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
     };
   }, [familyCode]);
 

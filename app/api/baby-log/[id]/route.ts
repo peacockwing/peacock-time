@@ -33,11 +33,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ success: false, error: '삭제할 기록을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    try {
-      await broadcastSocketAction('delete_log', data[0].family_code, { id: data[0].id });
-    } catch (err) {
-      console.error('Socket broadcast (delete) failed:', err);
-    }
+    // Supabase Realtime subscriptions will notify clients of deletes.
 
     return NextResponse.json({ success: true, deleted: data[0] });
   } catch (error: any) {

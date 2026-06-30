@@ -71,12 +71,8 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    // notify socket server (server-triggered broadcast)
-    try {
-      await broadcastSocketAction('new_log', familyCode, data?.[0] || null);
-    } catch (err) {
-      console.error('Socket broadcast failed:', err);
-    }
+    // Realtime updates will be handled by Supabase Realtime subscriptions.
+    // No Socket.IO broadcast here to keep deployment serverless-friendly.
 
     return NextResponse.json({ success: true, log: data?.[0] || null }, { status: 200 });
 

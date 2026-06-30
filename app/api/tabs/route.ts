@@ -73,11 +73,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: '업데이트할 항목을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    try {
-      await broadcastSocketAction('tabs_update', data[0].family_code, { targetTab, item: data[0] });
-    } catch (err) {
-      console.error('Socket broadcast (tabs) failed:', err);
-    }
+    // Supabase Realtime subscriptions will notify clients of tab updates.
 
     return NextResponse.json({ success: true, data: data[0] });
   } catch (error: any) {
