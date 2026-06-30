@@ -1,6 +1,7 @@
 // app/api/baby-log/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase'; // 상대 경로 재확인
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { broadcastSocketAction } from '../../../lib/socketBroadcast';
 
 // 1. 실시간 로그 조회 (GET)
 export async function GET(request: Request) {
@@ -12,8 +13,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '가족 코드가 누락되었습니다.' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from('baby_logs')
+    const { data, error } = await supabaseAdmin
+      .from('baby_log')
       .select('*')
       .eq('family_code', familyCode)
       .order('event_date', { ascending: false })
@@ -49,8 +50,8 @@ export async function POST(request: Request) {
     const event_time = kstDate.toISOString().slice(11, 16); // HH:MM
 
     // Supabase DB Insert 통신
-    const { data, error } = await supabase
-      .from('baby_logs')
+    const { data, error } = await supabaseAdmin
+      .from('baby_log')
       .insert([
         {
           family_code: familyCode,
@@ -70,7 +71,13 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    // 🌟 Next.js 15 표준 응답 객체 반환 (블로킹 해제)
+    // notify socket server (server-triggered broadcast)
+    try {
+      await broadcastSocketAction('new_log', familyCode, data?.[0] || null);
+    } catch (err) {
+      console.error('Socket broadcast failed:', err);
+    }
+
     return NextResponse.json({ success: true, log: data?.[0] || null }, { status: 200 });
 
   } catch (error: any) {

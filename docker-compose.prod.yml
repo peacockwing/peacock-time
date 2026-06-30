@@ -1,0 +1,60 @@
+version: '3.8'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SOCKET_URL=https://yourdomain.example/socket
+      - REDIS_URL=${REDIS_URL:-}
+    restart: always
+    networks:
+      - front
+
+  socket:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - SOCKET_PORT=3001
+      - SOCKET_SECRET=${SOCKET_SECRET}
+      - REDIS_URL=${REDIS_URL:-}
+    restart: always
+    networks:
+      - front
+      - back
+
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/certs:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+      - socket
+    networks:
+      - front
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./deploy/nginx/certs:/etc/letsencrypt
+    entrypoint: ["/bin/sh", "-c"]
+    command: "trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done"
+    networks:
+      - front
+
+networks:
+  front:
+  back:
+    internal: true
+
+# Notes:
+# - Provide a valid REDIS_URL in the environment for scaling with the Socket.IO Redis adapter.
+# - Replace `yourdomain.example` with your domain and configure DNS A/AAAA records to the host.
+# - Use the `deploy/nginx` config and certbot to provision TLS via Let's Encrypt.

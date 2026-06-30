@@ -1,0 +1,16 @@
+[Unit]
+Description=Peacock Time Next.js Web App
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/peacock-time-v2
+Environment=NODE_ENV=production
+Environment=NEXT_PUBLIC_SOCKET_URL=https://your-socket-host.example.com
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

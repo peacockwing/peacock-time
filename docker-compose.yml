@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  socket:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      - SOCKET_SECRET=${SOCKET_SECRET}
+      - SOCKET_PORT=3001
+      - REDIS_URL=${REDIS_URL}
+    ports:
+      - '3001:3001'
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1"]
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_SOCKET_URL=http://socket:3001
+      - SOCKET_SECRET=${SOCKET_SECRET}
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      - socket
+      - redis
+    restart: unless-stopped

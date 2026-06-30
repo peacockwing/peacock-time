@@ -1,5 +1,5 @@
 // app/layout.tsx
-import './globals.css'; // 💥 절대 경로(@/) 대신 상대 경로(./)로 직접 지정
+import './globals.css'; 
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
