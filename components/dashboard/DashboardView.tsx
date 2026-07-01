@@ -42,6 +42,64 @@ export default function DashboardView() {
     handleLogout,
   } = useDashboard();
 
+  // UI state for filtering
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  const [dateFrom, setDateFrom] = React.useState<string | null>(null); // YYYY-MM-DD
+  const [dateTo, setDateTo] = React.useState<string | null>(null); // YYYY-MM-DD
+
+  const CATEGORY_OPTIONS: { code: string; label: string }[] = [
+    { code: 'FEED', label: '수유/분유' },
+    { code: 'POOP_PEE', label: '배변' },
+    { code: 'TEMP', label: '체온' },
+    { code: 'SLEEP', label: '수면' },
+  ];
+
+  const toggleCategory = (code: string) => {
+    setSelectedCategories((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+  };
+
+  const resetFilters = () => {
+    setSelectedCategories([]);
+    setDateFrom(null);
+    setDateTo(null);
+  };
+
+  // Helper: convert event_date 'YYYYMMDD' and event_time 'HH:MM' to a Date for comparisons
+  const toIsoDate = (yyyymmdd: string) => {
+    if (!yyyymmdd || yyyymmdd.length < 8) return null;
+    const y = yyyymmdd.substring(0, 4);
+    const m = yyyymmdd.substring(4, 6);
+    const d = yyyymmdd.substring(6, 8);
+    return `${y}-${m}-${d}`; // YYYY-MM-DD
+  };
+
+  // Compute filtered and grouped logs
+  const filteredLogs = React.useMemo(() => {
+    let out = logs.slice();
+    if (selectedCategories.length > 0) {
+      out = out.filter((l) => selectedCategories.includes(l.category_code));
+    }
+    if (dateFrom) {
+      out = out.filter((l) => toIsoDate(l.event_date) >= dateFrom);
+    }
+    if (dateTo) {
+      out = out.filter((l) => toIsoDate(l.event_date) <= dateTo);
+    }
+    // sort by date desc then time desc
+    out.sort((a, b) => {
+      if (a.event_date !== b.event_date) return b.event_date.localeCompare(a.event_date);
+      return (b.event_time || '').localeCompare(a.event_time || '');
+    });
+    // group by date
+    const groups: Record<string, typeof out> = {};
+    out.forEach((item) => {
+      const key = toIsoDate(item.event_date) || 'unknown';
+      if (!groups[key]) groups[key] = [] as any;
+      groups[key].push(item);
+    });
+    return groups;
+  }, [logs, selectedCategories, dateFrom, dateTo]);
+
   if (!familyCode || familyCode === 'undefined' || familyCode === 'null') {
     return <div className="text-center p-20 text-slate-500 font-mono text-xs">INITIALIZING COMMAND CENTER...</div>;
   }
@@ -164,28 +222,52 @@ export default function DashboardView() {
             <div className="space-y-2">
               <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase px-1">Live Monitor Feed</h3>
               <div className="space-y-2">
-                {logs.length === 0 ? (
-                  <p className="text-center text-xs text-slate-500 py-10">기록이 비어있습니다.</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-[11px] text-slate-400">필터:</div>
+                    {CATEGORY_OPTIONS.map((opt) => (
+                      <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                    <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200 ml-2">초기화</button>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[11px] text-slate-400">
+                    <input type="date" value={dateFrom ?? ''} onChange={(e) => setDateFrom(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
+                    <span className="text-slate-500">~</span>
+                    <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
+                  </div>
+                </div>
+
+                {Object.keys(filteredLogs).length === 0 ? (
+                  <p className="text-center text-xs text-slate-500 py-10">필터조건에 해당하는 기록이 없습니다.</p>
                 ) : (
-                  logs.map((item) => {
-                    const logKey = `${item.id ?? 'noid'}-${item.event_date}-${item.event_time}-${item.actor_email ?? 'anon'}`;
-                    return (
-                      <div key={logKey} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl flex justify-between items-center shadow-sm">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-xl bg-slate-950/60 w-10 h-10 rounded-xl flex items-center justify-center border border-slate-800">{item.display_emoji}</span>
-                        <div>
-                          <p className="text-xs font-bold text-slate-200">
-                            {item.category_name_han} - <span className="text-indigo-400 font-mono">{item.event_value}</span>
-                          </p>
-                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                            {item.event_date.substring(4, 6)}/{item.event_date.substring(6, 8)} {item.event_time} · <span className="text-slate-600">{item.actor_email.split('@')[0]}</span>
-                          </p>
-                        </div>
+                  Object.entries(filteredLogs).map(([dateKey, items]) => (
+                    <div key={dateKey} className="space-y-2">
+                      <div className="text-[11px] font-bold text-slate-400 bg-slate-950/20 px-3 py-1 rounded-full inline-block">{dateKey}</div>
+                      <div className="space-y-2 pt-1">
+                        {items.map((item) => {
+                          const logKey = `${item.id ?? 'noid'}-${item.event_date}-${item.event_time}-${item.actor_email ?? 'anon'}`;
+                          return (
+                            <div key={logKey} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl flex justify-between items-center shadow-sm">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xl bg-slate-950/60 w-10 h-10 rounded-xl flex items-center justify-center border border-slate-800">{item.display_emoji}</span>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-200">
+                                    {item.category_name_han} - <span className="text-indigo-400 font-mono">{item.event_value}</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    {item.event_time} · <span className="text-slate-600">{item.actor_email.split('@')[0]}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
                     </div>
-                    );
-                  })
+                  ))
                 )}
               </div>
             </div>
