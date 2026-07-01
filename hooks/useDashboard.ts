@@ -70,12 +70,16 @@ export const useDashboard = () => {
     const dateStr = lastSleepLog.event_date;
     const timeStr = lastSleepLog.event_time;
 
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
+    const y = parseInt(dateStr.substring(0, 4), 10);
+    const m = parseInt(dateStr.substring(4, 6), 10);
+    const d = parseInt(dateStr.substring(6, 8), 10);
+    const [hStr, minStr] = (timeStr || '00:00').split(':');
+    const hh = parseInt(hStr || '0', 10);
+    const mm = parseInt(minStr || '0', 10);
 
-    const logDateTime = new Date(`${year}-${month}-${day}T${timeStr}:00`);
-    const diffMinutes = Math.max(0, Math.floor((Date.now() - logDateTime.getTime()) / 60000));
+    // Stored times are in KST (UTC+9). Convert KST datetime to UTC ms for correct diff.
+    const logUtcMs = Date.UTC(y, m - 1, d, hh, mm) - 9 * 60 * 60 * 1000;
+    const diffMinutes = Math.max(0, Math.floor((Date.now() - logUtcMs) / 60000));
 
     const hours = String(Math.floor(diffMinutes / 60)).padStart(2, '0');
     const mins = String(diffMinutes % 60).padStart(2, '0');
@@ -231,15 +235,28 @@ export const useDashboard = () => {
   ) => {
     if (!familyCode) return;
 
-    // use KST so optimistic timestamp matches server-side KST timestamp
+    // Compute KST (Asia/Seoul) components reliably regardless of client timezone
     const now = new Date();
-    const kstOffset = 9 * 60 * 60 * 1000;
-    const kstDate = new Date(now.getTime() + kstOffset);
-    const year = kstDate.getFullYear();
-    const month = String(kstDate.getMonth() + 1).padStart(2, '0');
-    const day = String(kstDate.getDate()).padStart(2, '0');
-    const hours = String(kstDate.getHours()).padStart(2, '0');
-    const minutes = String(kstDate.getMinutes()).padStart(2, '0');
+    const parts = new Intl.DateTimeFormat('en', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now);
+
+    const lookup: Record<string, string> = {};
+    parts.forEach((p) => {
+      if (p.type !== 'literal') lookup[p.type] = p.value;
+    });
+
+    const year = lookup.year;
+    const month = (lookup.month || '01').padStart(2, '0');
+    const day = (lookup.day || '01').padStart(2, '0');
+    const hours = (lookup.hour || '00').padStart(2, '0');
+    const minutes = (lookup.minute || '00').padStart(2, '0');
 
     // use a negative temporary id to reliably identify optimistic entries
     const optimisticLog: BabyLog = {
