@@ -1,0 +1,36 @@
+name: Prisma DB Push (Production)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Build and Push Docker Images
+    types:
+      - completed
+
+jobs:
+  db-push:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push Prisma schema to production database
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: PROD_DATABASE_URL secret is not set"
+            exit 1
+          fi
+          # Intentionally no --accept-data-loss: if a schema change would
+          # drop/alter data destructively, this step fails loudly instead
+          # of silently applying it. Review manually and re-run if needed.
+          npx prisma db push

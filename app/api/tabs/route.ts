@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: data.map((item) => ({ ...item, id: Number(item.id) })) });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || '서버 에러' }, { status: 500 });
   }
@@ -87,7 +87,7 @@ export async function PATCH(request: Request) {
     } else {
       data = await prisma.inventory.findUnique({ where: { id } });
     }
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: data ? { ...data, id: Number(data.id) } : data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || '서버 에러' }, { status: 500 });
   }

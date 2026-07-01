@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       take: 50,
     });
 
-    return NextResponse.json({ success: true, logs });
+    return NextResponse.json({ success: true, logs: logs.map((log) => ({ ...log, id: Number(log.id) })) });
   } catch (error: any) {
     console.error('❌ GET /api/baby-log Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, log }, { status: 200 });
+    return NextResponse.json({ success: true, log: { ...log, id: Number(log.id) } }, { status: 200 });
 
   } catch (error: any) {
     console.error('❌ POST /api/baby-log 500 Error:', error.message);

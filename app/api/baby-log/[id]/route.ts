@@ -85,7 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       where: { id: numericId },
     });
 
-    return NextResponse.json({ success: true, log });
+    return NextResponse.json({ success: true, log: log ? { ...log, id: Number(log.id) } : log });
   } catch (error: any) {
     console.error('❌ PATCH /api/baby-log/[id] Error:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
