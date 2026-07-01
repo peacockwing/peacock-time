@@ -31,21 +31,22 @@ const prismaOptions = dbUrl
     }
   : undefined;
 
-if (!dbUrl) {
-  const message =
-    'Missing DATABASE_URL. Set DATABASE_URL in .env.local, .env.production, or the runtime environment. ' +
-    'If you use Supabase, set DATABASE_URL to the Supabase Postgres connection string (not the HTTP SUPABASE_URL). ' +
-    'Supported fallback names: SUPABASE_DB_URL, POSTGRES_URL, POSTGRESQL_URL.';
-
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(message);
-  } else {
-    throw new Error(message);
-  }
-}
-
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient(prismaOptions);
+export function getPrisma() {
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma;
+  }
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+  if (!dbUrl) {
+    const message =
+      'Missing DATABASE_URL. Set DATABASE_URL in .env.local, .env.production, or the runtime environment. ' +
+      'If you use Supabase, set DATABASE_URL to the Supabase Postgres connection string (not the HTTP SUPABASE_URL). ' +
+      'Supported fallback names: SUPABASE_DB_URL, POSTGRES_URL, POSTGRESQL_URL.';
+
+    throw new Error(message);
+  }
+
+  globalForPrisma.prisma = new PrismaClient(prismaOptions);
+  return globalForPrisma.prisma;
+}

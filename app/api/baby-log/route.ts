@@ -1,9 +1,10 @@
 // app/api/baby-log/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma';
+import { getPrisma } from '../../../lib/prisma';
 
 // 1. 실시간 로그 조회 (GET)
 export async function GET(request: Request) {
+  const prisma = getPrisma();
   try {
     const { searchParams } = new URL(request.url);
     const familyCode = searchParams.get('familyCode');
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
     
     const event_date = kstDate.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
     const event_time = kstDate.toISOString().slice(11, 16); // HH:MM
+
+    const prisma = getPrisma();
 
     // Supabase DB Insert 통신
     const log = await prisma.babyLog.create({
