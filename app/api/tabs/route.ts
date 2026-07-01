@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma';
+import { getPrisma } from '../../../lib/prisma';
 
 const CHECKLIST_TABLE = 'checklist';
 const INVENTORY_TABLE = 'inventory';
@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     if (!['checklist', 'inventory'].includes(targetTab)) {
       return NextResponse.json({ success: false, error: '유효하지 않은 targetTab 값입니다.' }, { status: 400 });
     }
+
+    const prisma = getPrisma();
 
     let data: any[] = [];
     if (targetTab === 'checklist') {
@@ -59,6 +61,8 @@ export async function PATCH(request: Request) {
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: false, error: '업데이트할 필드가 없습니다.' }, { status: 400 });
     }
+
+    const prisma = getPrisma();
 
     let updated: any;
     if (table === CHECKLIST_TABLE) {
