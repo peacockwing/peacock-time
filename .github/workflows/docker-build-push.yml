@@ -48,6 +48,9 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/peacock-time-web:${{ steps.tag.outputs.IMAGE_TAG }}
             ghcr.io/${{ github.repository_owner }}/peacock-time-web:latest
