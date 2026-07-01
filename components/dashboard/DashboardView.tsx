@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useDashboard } from '../../hooks/useDashboard';
 import VoiceControl from '../voice/VoiceControl';
 
@@ -64,6 +65,74 @@ export default function DashboardView() {
     setDateFrom(null);
     setDateTo(null);
   };
+
+  // Preset helpers
+  const setPresetToday = () => {
+    const d = new Date();
+    const iso = d.toISOString().slice(0, 10);
+    setDateFrom(iso);
+    setDateTo(iso);
+  };
+
+  const setPresetThisWeek = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0 (Sun) - 6
+    const diffToMon = (day + 6) % 7; // days since Monday
+    const start = new Date(now);
+    start.setDate(now.getDate() - diffToMon);
+    const end = new Date(now);
+    const isoStart = start.toISOString().slice(0, 10);
+    const isoEnd = end.toISOString().slice(0, 10);
+    setDateFrom(isoStart);
+    setDateTo(isoEnd);
+  };
+
+  const setPresetThisMonth = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setDateFrom(start.toISOString().slice(0, 10));
+    setDateTo(end.toISOString().slice(0, 10));
+  };
+
+  // Mobile filter toggle
+  const [showFiltersMobile, setShowFiltersMobile] = React.useState(false);
+
+  // URL sync
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize filters from URL on mount
+  React.useEffect(() => {
+    try {
+      const sp = searchParams;
+      if (!sp) return;
+      const cats = sp.get('cats');
+      const from = sp.get('from');
+      const to = sp.get('to');
+      if (cats) setSelectedCategories(cats.split(',').filter(Boolean));
+      if (from) setDateFrom(from);
+      if (to) setDateTo(to);
+    } catch (e) {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push filter state to URL when changed
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedCategories.length > 0) params.set('cats', selectedCategories.join(','));
+      if (dateFrom) params.set('from', dateFrom);
+      if (dateTo) params.set('to', dateTo);
+      const q = params.toString();
+      const path = window.location.pathname + (q ? `?${q}` : '');
+      router.replace(path);
+    } catch (e) {
+      /* ignore */
+    }
+  }, [selectedCategories, dateFrom, dateTo, router]);
 
   // Helper: convert event_date 'YYYYMMDD' and event_time 'HH:MM' to a Date for comparisons
   const toIsoDate = (yyyymmdd: string) => {
@@ -232,6 +301,13 @@ export default function DashboardView() {
                       </button>
                     ))}
                     <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200 ml-2">초기화</button>
+                    <div className="hidden md:flex items-center space-x-2 ml-2">
+                      <button onClick={setPresetToday} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">오늘</button>
+                      <button onClick={setPresetThisWeek} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">이번주</button>
+                      <button onClick={setPresetThisMonth} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">이번달</button>
+                    </div>
+                    {/* Mobile filter toggle */}
+                    <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">필터</button>
                   </div>
                   <div className="flex items-center space-x-2 text-[11px] text-slate-400">
                     <input type="date" value={dateFrom ?? ''} onChange={(e) => setDateFrom(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
@@ -239,6 +315,20 @@ export default function DashboardView() {
                     <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
                   </div>
                 </div>
+                {showFiltersMobile && (
+                  <div className="md:hidden mt-2 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <button onClick={setPresetToday} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">오늘</button>
+                      <button onClick={setPresetThisWeek} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">이번주</button>
+                      <button onClick={setPresetThisMonth} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">이번달</button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input type="date" value={dateFrom ?? ''} onChange={(e) => setDateFrom(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
+                      <span className="text-slate-500">~</span>
+                      <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
+                    </div>
+                  </div>
+                )}
 
                 {Object.keys(filteredLogs).length === 0 ? (
                   <p className="text-center text-xs text-slate-500 py-10">필터조건에 해당하는 기록이 없습니다.</p>
