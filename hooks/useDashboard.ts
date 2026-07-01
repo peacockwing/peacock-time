@@ -151,6 +151,13 @@ export const useDashboard = () => {
     // Socket.IO client removed; Supabase Realtime subscription handles updates.
 
     const channelName = `peacock-space-${familyCode}`;
+    // Helper to extract id from various realtime payload shapes
+    const extractIdFromPayload = (payload: any) => {
+      // Supabase realtime payloads can expose the deleted row under different keys
+      // depending on client / server versions: `old`, `record`, `new`, or sometimes `id`.
+      if (!payload) return null;
+      return payload.old?.id ?? payload.record?.id ?? payload.new?.id ?? payload.id ?? null;
+    };
     const channel = supabase
       .channel(channelName, {
         config: {
@@ -206,7 +213,11 @@ export const useDashboard = () => {
         filter: `family_code=eq.${familyCode}`,
       }, (payload) => {
         console.debug('[realtime][baby_log][DELETE] payload:', payload);
-        setLogs((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
+        const deletedId = extractIdFromPayload(payload);
+        console.debug('[realtime][baby_log][DELETE] resolved id:', deletedId, 'types:', typeof deletedId);
+        if (deletedId == null) return;
+        const sid = String(deletedId);
+        setLogs((prev) => prev.filter((item) => String(item.id) !== sid));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][INSERT] payload:', payload);
@@ -218,7 +229,10 @@ export const useDashboard = () => {
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][DELETE] payload:', payload);
-        setChecklist((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
+        const deletedId = extractIdFromPayload(payload);
+        if (deletedId == null) return;
+        const sid = String(deletedId);
+        setChecklist((prev) => prev.filter((item) => String(item.id) !== sid));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'inventory', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][inventory][INSERT] payload:', payload);
@@ -230,11 +244,14 @@ export const useDashboard = () => {
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'inventory', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][inventory][DELETE] payload:', payload);
-        setInventory((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
+        const deletedId = extractIdFromPayload(payload);
+        if (deletedId == null) return;
+        const sid = String(deletedId);
+        setInventory((prev) => prev.filter((item) => String(item.id) !== sid));
       })
       .subscribe();
 
-    console.debug('[realtime] subscribed to peacock-space-channel for familyCode=', familyCode);
+    console.debug('[realtime] subscribed to', channelName, 'for familyCode=', familyCode);
 
     return () => {
       try {
