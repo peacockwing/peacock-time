@@ -10,6 +10,7 @@ Quick steps (example):
    - `SOCKET_SECRET=...`
    - `REDIS_URL=redis://:password@redis-host:6379`
    - `DATABASE_URL=postgresql://...` (production Postgres connection string; if using Supabase, use the Supabase Postgres URL)
+   - `SUPABASE_DB_URL=postgresql://...` (optional fallback if your deployment provider sets this instead)
    - `SUPABASE_URL=https://your-project.supabase.co`
    - `NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key`

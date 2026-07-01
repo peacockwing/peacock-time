@@ -11,7 +11,16 @@ for (const file of envFiles) {
   }
 }
 
-const dbUrl = process.env.DATABASE_URL;
+const dbUrl =
+  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DB_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRESQL_URL;
+
+if (dbUrl && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = dbUrl;
+}
+
 const prismaOptions = dbUrl
   ? {
       datasources: {
@@ -22,10 +31,17 @@ const prismaOptions = dbUrl
     }
   : undefined;
 
-if (!dbUrl && process.env.NODE_ENV === 'development') {
-  console.warn(
-    'DATABASE_URL was not set during build/development. Prisma will attempt to use the runtime DATABASE_URL when the server starts.'
-  );
+if (!dbUrl) {
+  const message =
+    'Missing DATABASE_URL. Set DATABASE_URL in .env.local, .env.production, or the runtime environment. ' +
+    'If you use Supabase, set DATABASE_URL to the Supabase Postgres connection string (not the HTTP SUPABASE_URL). ' +
+    'Supported fallback names: SUPABASE_DB_URL, POSTGRES_URL, POSTGRESQL_URL.';
+
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(message);
+  } else {
+    throw new Error(message);
+  }
 }
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
