@@ -397,6 +397,99 @@ export const useDashboard = () => {
     }
   };
 
+  // Voice command: listen for Korean commands like
+  // "피콕타임! 분유 수유 60ml 입력해죠"
+  const recognitionRef = useRef<any | null>(null);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+
+  const startVoiceCommand = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
+      return;
+    }
+
+    if (recognitionRef.current) return;
+
+    const rec = new SpeechRecognition();
+    rec.lang = 'ko-KR';
+    rec.interimResults = false;
+    rec.continuous = false;
+
+    rec.onstart = () => {
+      setIsVoiceListening(true);
+    };
+
+    rec.onerror = (ev: any) => {
+      console.error('speech recognition error', ev);
+      setIsVoiceListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.onend = () => {
+      setIsVoiceListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.onresult = (ev: any) => {
+      const transcript = Array.from(ev.results).map((r: any) => r[0].transcript).join('');
+      console.debug('[voice] transcript:', transcript);
+      handleVoiceTranscript(transcript);
+    };
+
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      console.error('recognition start failed', e);
+      setIsVoiceListening(false);
+      recognitionRef.current = null;
+    }
+  };
+
+  const stopVoiceCommand = () => {
+    const rec = recognitionRef.current;
+    if (rec) {
+      try { rec.stop(); } catch (e) { /* ignore */ }
+      recognitionRef.current = null;
+    }
+    setIsVoiceListening(false);
+  };
+
+  const handleVoiceTranscript = async (text: string) => {
+    if (!familyCode) {
+      alert('가족 코드가 설정되어 있지 않습니다.');
+      return;
+    }
+
+    const normalized = text.replace(/\s+/g, ' ').toLowerCase();
+
+    // Example pattern: "피콕타임 분유 수유 60ml 입력해죠" or "분유 60ml 입력"
+    const feedRegex = /(?:분유|수유|젖)[^\d]*(\d{1,4})\s*(?:ml|밀리리터|밀리)/i;
+    const feedMatch = normalized.match(feedRegex as any);
+
+    if (feedMatch) {
+      const amount = feedMatch[1];
+      // submit FEED quick event
+      await submitQuickEvent('FEED', '수유', `${amount}ml`, '🍼');
+      return;
+    }
+
+    // Toggle sleep commands
+    if (/잠.*들|자러|수면 시작/.test(normalized)) {
+      await submitQuickEvent('SLEEP', '수면', '수면 시작 💤', '😴');
+      return;
+    }
+
+    if (/깨어나|잠에서 깨어|일어났/.test(normalized)) {
+      await submitQuickEvent('SLEEP', '수면', '잠에서 깨어남 ☀️', '☀️');
+      return;
+    }
+
+    // Fallback: notify user
+    alert(`음성 명령을 이해하지 못했습니다: ${text}`);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('familyCode');
     localStorage.removeItem('userEmail');
@@ -467,5 +560,8 @@ export const useDashboard = () => {
     handleInventoryStatus,
     startCryAnalysis,
     handleLogout,
+    startVoiceCommand,
+    stopVoiceCommand,
+    isVoiceListening,
   };
 };
