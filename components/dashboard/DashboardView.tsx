@@ -167,8 +167,10 @@ export default function DashboardView() {
                 {logs.length === 0 ? (
                   <p className="text-center text-xs text-slate-500 py-10">기록이 비어있습니다.</p>
                 ) : (
-                  logs.map((item) => (
-                    <div key={item.id} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl flex justify-between items-center shadow-sm">
+                  logs.map((item) => {
+                    const logKey = `${item.id ?? 'noid'}-${item.event_date}-${item.event_time}-${item.actor_email ?? 'anon'}`;
+                    return (
+                      <div key={logKey} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl flex justify-between items-center shadow-sm">
                       <div className="flex items-center space-x-3">
                         <span className="text-xl bg-slate-950/60 w-10 h-10 rounded-xl flex items-center justify-center border border-slate-800">{item.display_emoji}</span>
                         <div>
@@ -182,7 +184,8 @@ export default function DashboardView() {
                       </div>
                       <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
