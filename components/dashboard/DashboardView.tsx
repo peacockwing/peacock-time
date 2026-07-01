@@ -122,6 +122,14 @@ export default function DashboardView() {
     }
   }, [showCategoryPills]);
 
+  const toggleFilters = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setShowFiltersMobile((s) => !s);
+    } else {
+      setShowCategoryPills((s) => !s);
+    }
+  };
+
   // URL sync
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -330,7 +338,7 @@ export default function DashboardView() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
-                    <button aria-label="toggle filters" onClick={() => setShowCategoryPills((s) => !s)} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border md:mr-1">
+                    <button aria-label="toggle filters" onClick={toggleFilters} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border md:mr-1">
                       🔎{selectedCategories.length > 0 ? ` ${selectedCategories.length}` : ''}
                     </button>
 
@@ -353,8 +361,7 @@ export default function DashboardView() {
                       <button onClick={setPresetLast7Days} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🕒 7일</button>
                     </div>
 
-                    {/* Mobile filter toggle */}
-                    <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">🔎</button>
+                    {/* single unified filter toggle button used for both desktop and mobile */}
                   </div>
 
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-2 md:gap-4">
