@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { fetchBabyLogs, createBabyLog, deleteBabyLog, analyzeCry } from '../services/babyLogService';
 import { fetchTabData, updateTabItem } from '../services/tabsService';
+import { parseVoiceCommand } from '../services/voiceParser';
+import { speak } from '../services/tts';
 import type { BabyLog, ChecklistItem, InventoryItem } from '../types/baby';
 
 export const useDashboard = () => {
@@ -462,32 +464,42 @@ export const useDashboard = () => {
       return;
     }
 
-    const normalized = text.replace(/\s+/g, ' ').toLowerCase();
-
-    // Example pattern: "피콕타임 분유 수유 60ml 입력해죠" or "분유 60ml 입력"
-    const feedRegex = /(?:분유|수유|젖)[^\d]*(\d{1,4})\s*(?:ml|밀리리터|밀리)/i;
-    const feedMatch = normalized.match(feedRegex as any);
-
-    if (feedMatch) {
-      const amount = feedMatch[1];
-      // submit FEED quick event
-      await submitQuickEvent('FEED', '수유', `${amount}ml`, '🍼');
+    const cmd = parseVoiceCommand(text || '');
+    if (!cmd) {
+      speak('음성 명령을 이해하지 못했습니다. 다시 말해주세요.');
       return;
     }
 
-    // Toggle sleep commands
-    if (/잠.*들|자러|수면 시작/.test(normalized)) {
-      await submitQuickEvent('SLEEP', '수면', '수면 시작 💤', '😴');
-      return;
+    try {
+      if (cmd.type === 'FEED') {
+        await submitQuickEvent('FEED', '수유', `${cmd.amountMl}ml`, '🍼');
+        speak(`${cmd.amountMl} 밀리리터 분유 기록을 추가했습니다`);
+        return;
+      }
+      if (cmd.type === 'TEMP') {
+        await submitQuickEvent('TEMP', '체온', `${cmd.value}도`, '🌡️');
+        speak(`${cmd.value} 도 체온 기록을 추가했습니다`);
+        return;
+      }
+      if (cmd.type === 'POOP') {
+        await submitQuickEvent('POOP_PEE', '배변', '정상 대변 💩', '💩');
+        speak('배변 기록을 추가했습니다');
+        return;
+      }
+      if (cmd.type === 'SLEEP_TOGGLE') {
+        if (cmd.state === 'SLEEP') {
+          await submitQuickEvent('SLEEP', '수면', '수면 시작 💤', '😴');
+          speak('수면 시작 기록을 추가했습니다');
+        } else {
+          await submitQuickEvent('SLEEP', '수면', '잠에서 깨어남 ☀️', '☀️');
+          speak('깨어남 기록을 추가했습니다');
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('voice command failed', e);
+      speak('기록 중 오류가 발생했습니다');
     }
-
-    if (/깨어나|잠에서 깨어|일어났/.test(normalized)) {
-      await submitQuickEvent('SLEEP', '수면', '잠에서 깨어남 ☀️', '☀️');
-      return;
-    }
-
-    // Fallback: notify user
-    alert(`음성 명령을 이해하지 못했습니다: ${text}`);
   };
 
   const handleLogout = () => {

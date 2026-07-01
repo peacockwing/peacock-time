@@ -1,6 +1,7 @@
 'use client';
 
 import { useDashboard } from '../../hooks/useDashboard';
+import VoiceControl from '../voice/VoiceControl';
 
 export default function DashboardView() {
   const {
@@ -129,6 +130,10 @@ export default function DashboardView() {
               <button onClick={() => setModalType('TEMP')} className="bg-slate-800/90 border border-slate-700/50 py-3 rounded-xl flex flex-col items-center space-y-1 active:scale-95 transition-transform">
                 <span className="text-lg">🌡️</span><span className="text-[10px] font-bold text-slate-300">체온측정</span>
               </button>
+            </div>
+
+            <div className="pt-3">
+              <VoiceControl />
             </div>
 
             <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-inner">
