@@ -113,6 +113,14 @@ export default function DashboardView() {
   const [showFiltersMobile, setShowFiltersMobile] = React.useState(false);
   // Desktop category pills visibility (hidden until user opens or selects)
   const [showCategoryPills, setShowCategoryPills] = React.useState(false);
+  const categoryPillsRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (showCategoryPills && categoryPillsRef.current) {
+      const btn = categoryPillsRef.current.querySelector('button');
+      if (btn) (btn as HTMLButtonElement).focus();
+    }
+  }, [showCategoryPills]);
 
   // URL sync
   const router = useRouter();
@@ -320,50 +328,53 @@ export default function DashboardView() {
             <div className="space-y-2">
               <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase px-1">Live Monitor Feed</h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="text-[11px] text-slate-400">필터:</div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="text-[11px] text-slate-400">필터:</div>
-                        <button onClick={() => setShowCategoryPills((s) => !s)} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border">
-                          🔎 {selectedCategories.length > 0 ? `(${selectedCategories.length})` : ''}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-3">
+                    <button aria-label="toggle filters" onClick={() => setShowCategoryPills((s) => !s)} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border md:mr-1">
+                      🔎{selectedCategories.length > 0 ? ` ${selectedCategories.length}` : ''}
+                    </button>
+
+                    <div ref={categoryPillsRef} className={`${showCategoryPills || selectedCategories.length > 0 ? 'flex flex-wrap gap-2 items-center' : 'hidden'}`}>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
+                          {opt.label}
                         </button>
-                      </div>
-                      <div className={`${showCategoryPills || selectedCategories.length > 0 ? 'flex flex-wrap gap-2' : 'hidden'}`}>
-                        {CATEGORY_OPTIONS.map((opt) => (
-                          <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
+                      ))}
                       <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200">초기화</button>
-                      <div className="hidden md:flex items-center gap-2 ml-2 bg-slate-900/40 p-1 rounded-full">
-                        <button onClick={setPresetToday} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📅 오늘</button>
-                        <button onClick={setPresetThisWeek} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🗓️ 이번주</button>
-                        <button onClick={setPresetThisMonth} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📆 이번달</button>
-                        <button onClick={setPresetLast24h} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">⏱️ 24h</button>
-                        <button onClick={setPresetLast7Days} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🕒 7일</button>
-                      </div>
                     </div>
+
+                    <div className="hidden md:flex items-center gap-2 ml-2 bg-slate-900/40 p-1 rounded-full">
+                      <button onClick={setPresetToday} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📅 오늘</button>
+                      <button onClick={setPresetThisWeek} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🗓️ 이번주</button>
+                      <button onClick={setPresetThisMonth} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📆 이번달</button>
+                      <button onClick={setPresetLast24h} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">⏱️ 24h</button>
+                      <button onClick={setPresetLast7Days} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🕒 7일</button>
+                    </div>
+
                     {/* Mobile filter toggle */}
-                    <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">🔎 필터</button>
+                    <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">🔎</button>
                   </div>
-                  <div className="flex items-center space-x-2 text-[11px] text-slate-400">
-                    <div className="text-[11px] text-slate-500">기간:</div>
-                    <div className="text-[11px] text-slate-300">{dateFrom && dateTo ? `${dateFrom} ~ ${dateTo}` : '전체'}</div>
+
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-2 md:gap-4">
+                    <div className="w-full md:w-auto">
+                      {dateFrom && dateTo ? (
+                        <div className="text-[12px] text-slate-300 break-words whitespace-normal">기간: {dateFrom} ~ {dateTo}</div>
+                      ) : (
+                        <div className="text-[12px] text-slate-300">전체</div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0">
+                      <button onClick={() => {
+                        try {
+                          const url = window.location.href;
+                          navigator.clipboard.writeText(url);
+                          alert('필터 링크가 복사되었습니다.');
+                        } catch (e) {
+                          alert('복사에 실패했습니다. 주소창에서 수동 복사해주세요.');
+                        }
+                      }} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🔗 링크복사</button>
+                    </div>
                   </div>
-                <div className="mt-2">
-                  <button onClick={() => {
-                    try {
-                      const url = window.location.href;
-                      navigator.clipboard.writeText(url);
-                      alert('필터 링크가 복사되었습니다.');
-                    } catch (e) {
-                      alert('복사에 실패했습니다. 주소창에서 수동 복사해주세요.');
-                    }
-                  }} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🔗 링크복사</button>
-                </div>
                 </div>
                 {showFiltersMobile && (
                   <div className="md:hidden fixed inset-0 z-50 bg-black/70 flex items-end">
