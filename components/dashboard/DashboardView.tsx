@@ -321,18 +321,22 @@ export default function DashboardView() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="text-[11px] text-slate-400">필터:</div>
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
-                        {opt.label}
-                      </button>
-                    ))}
-                    <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200 ml-2">초기화</button>
-                    <div className="hidden md:flex items-center space-x-2 ml-2">
-                      <button onClick={setPresetToday} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">📅 오늘</button>
-                      <button onClick={setPresetThisWeek} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🗓️ 이번주</button>
-                      <button onClick={setPresetThisMonth} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">📆 이번달</button>
-                      <button onClick={setPresetLast24h} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">⏱️ 지난24h</button>
-                      <button onClick={setPresetLast7Days} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🕒 지난7일</button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {CATEGORY_OPTIONS.map((opt) => (
+                          <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200">초기화</button>
+                      <div className="hidden md:flex items-center gap-2 ml-2 bg-slate-900/40 p-1 rounded-full">
+                        <button onClick={setPresetToday} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📅 오늘</button>
+                        <button onClick={setPresetThisWeek} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🗓️ 이번주</button>
+                        <button onClick={setPresetThisMonth} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📆 이번달</button>
+                        <button onClick={setPresetLast24h} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">⏱️ 24h</button>
+                        <button onClick={setPresetLast7Days} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🕒 7일</button>
+                      </div>
                     </div>
                     {/* Mobile filter toggle */}
                     <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">🔎 필터</button>
@@ -384,24 +388,19 @@ export default function DashboardView() {
                   Object.entries(filteredLogs).map(([dateKey, items]) => (
                     <div key={dateKey} className="space-y-2">
                       <div className="text-[11px] font-bold text-slate-400 bg-slate-950/20 px-3 py-1 rounded-full inline-block">{dateKey}</div>
-                      <div className="space-y-2 pt-1">
-                        {items.map((item) => {
-                          const logKey = `${item.id ?? 'noid'}-${item.event_date}-${item.event_time}-${item.actor_email ?? 'anon'}`;
-                          return (
-                            <div key={logKey} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl flex justify-between items-center shadow-sm">
-                              <div className="flex items-center space-x-3">
-                                <span className="text-xl bg-slate-950/60 w-10 h-10 rounded-xl flex items-center justify-center border border-slate-800">{item.display_emoji}</span>
-                                <div>
-                                  <p className="text-xs font-bold text-slate-200">
-                                    {item.category_name_han} - <span className="text-indigo-400 font-mono">{item.event_value}</span>
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                    {item.event_time} · <span className="text-slate-600">{item.actor_email.split('@')[0]}</span>
-                                  </p>
-                                </div>
-                              </div>
-                              <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
-                            </div>
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button onClick={setPresetToday} className="text-[13px] px-3 py-2 rounded-full bg-slate-800 text-slate-200">📅 오늘</button>
+                            <button onClick={setPresetThisWeek} className="text-[13px] px-3 py-2 rounded-full bg-slate-800 text-slate-200">🗓️ 이번주</button>
+                            <button onClick={setPresetThisMonth} className="text-[13px] px-3 py-2 rounded-full bg-slate-800 text-slate-200">📆 이번달</button>
+                            <button onClick={setPresetLast24h} className="text-[13px] px-3 py-2 rounded-full bg-slate-800 text-slate-200">⏱️ 24시간</button>
+                            <button onClick={setPresetLast7Days} className="text-[13px] px-3 py-2 rounded-full bg-slate-800 text-slate-200">🕒 7일</button>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button onClick={resetFilters} className="px-3 py-2 bg-slate-800 rounded-md">초기화</button>
+                            <button onClick={() => { setShowFiltersMobile(false); }} className="px-3 py-2 bg-indigo-600 rounded-md text-white">적용</button>
+                          </div>
+                        </div>
                           );
                         })}
                       </div>
