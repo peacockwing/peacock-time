@@ -11,32 +11,37 @@ for (const file of envFiles) {
   }
 }
 
-const dbUrl =
-  process.env.DATABASE_URL ||
-  process.env.SUPABASE_DB_URL ||
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRESQL_URL;
-
-if (dbUrl && !process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = dbUrl;
-}
-
-const prismaOptions = dbUrl
-  ? {
-      datasources: {
-        db: {
-          url: dbUrl,
-        },
-      },
-    }
-  : undefined;
-
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+
+function resolveDatabaseUrl() {
+  const dbUrl =
+    process.env.DATABASE_URL ||
+    process.env.SUPABASE_DB_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRESQL_URL;
+
+  if (dbUrl && !process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = dbUrl;
+  }
+
+  return dbUrl;
+}
 
 export function getPrisma() {
   if (globalForPrisma.prisma) {
     return globalForPrisma.prisma;
   }
+
+  const dbUrl = resolveDatabaseUrl();
+  const prismaOptions = dbUrl
+    ? {
+        datasources: {
+          db: {
+            url: dbUrl,
+          },
+        },
+      }
+    : undefined;
 
   if (!dbUrl) {
     const message =
