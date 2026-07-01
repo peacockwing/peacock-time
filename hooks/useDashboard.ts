@@ -150,8 +150,9 @@ export const useDashboard = () => {
 
     // Socket.IO client removed; Supabase Realtime subscription handles updates.
 
+    const channelName = `peacock-space-${familyCode}`;
     const channel = supabase
-      .channel('peacock-space-channel', {
+      .channel(channelName, {
         config: {
           broadcast: { self: true },
           presence: { key: familyCode },
