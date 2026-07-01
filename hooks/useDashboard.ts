@@ -161,7 +161,6 @@ export const useDashboard = () => {
       return payload.old?.id ?? payload.record?.id ?? payload.new?.id ?? payload.id ?? null;
     };
     const channel = supabase
-      const channel = supabase
       .channel(channelName, {
         config: {
           broadcast: { self: true },
