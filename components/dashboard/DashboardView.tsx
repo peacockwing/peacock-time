@@ -338,9 +338,8 @@ export default function DashboardView() {
                     <button onClick={() => setShowFiltersMobile((s) => !s)} className="md:hidden text-[11px] px-2 py-1 rounded-full border bg-slate-800 text-slate-200 ml-2">🔎 필터</button>
                   </div>
                   <div className="flex items-center space-x-2 text-[11px] text-slate-400">
-                    <input type="date" value={dateFrom ?? ''} onChange={(e) => setDateFrom(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
-                    <span className="text-slate-500">~</span>
-                    <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
+                    <div className="text-[11px] text-slate-500">기간:</div>
+                    <div className="text-[11px] text-slate-300">{dateFrom && dateTo ? `${dateFrom} ~ ${dateTo}` : '전체'}</div>
                   </div>
                 <div className="mt-2">
                   <button onClick={() => {
@@ -369,11 +368,7 @@ export default function DashboardView() {
                           <button onClick={setPresetLast24h} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">⏱️ 지난24h</button>
                           <button onClick={setPresetLast7Days} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">🕒 지난7일</button>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <input type="date" value={dateFrom ?? ''} onChange={(e) => setDateFrom(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
-                          <span className="text-slate-500">~</span>
-                          <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
-                        </div>
+                        {/* 날짜 입력 캘린더 제거: 프리셋으로 기간 선택합니다. */}
                         <div className="flex items-center space-x-2">
                           <button onClick={resetFilters} className="px-3 py-2 bg-slate-800 rounded-md">초기화</button>
                           <button onClick={() => { setShowFiltersMobile(false); }} className="px-3 py-2 bg-indigo-600 rounded-md text-white">적용</button>
