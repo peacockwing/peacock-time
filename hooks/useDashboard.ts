@@ -9,6 +9,9 @@ import { parseVoiceCommand } from '../services/voiceParser';
 import { speak } from '../services/tts';
 import type { BabyLog, ChecklistItem, InventoryItem } from '../types/baby';
 
+// Track which familyCode channels we've already subscribed to in this page session
+const activeFamilyChannels = new Set<string>();
+
 export const useDashboard = () => {
   const router = useRouter();
 
@@ -40,6 +43,8 @@ export const useDashboard = () => {
   const lastSleepLogRef = useRef<BabyLog | null>(null);
   // Socket.IO client removed: using Supabase Realtime only
   const socketRef = useRef<any | null>(null);
+
+// Track which familyCode channels we've already subscribed to in this page session
 
   useEffect(() => {
     let lastFeed = '수유 기록 없음';
@@ -136,6 +141,12 @@ export const useDashboard = () => {
 
   useEffect(() => {
     if (!familyCode || familyCode === 'undefined' || familyCode === 'null') return;
+    // Avoid creating duplicate subscriptions for the same familyCode in this page session
+    if (activeFamilyChannels.has(familyCode)) {
+      console.debug('[realtime] already subscribed for familyCode=', familyCode);
+      return;
+    }
+    activeFamilyChannels.add(familyCode);
 
     // Socket.IO client removed; Supabase Realtime subscription handles updates.
 
@@ -225,7 +236,12 @@ export const useDashboard = () => {
     console.debug('[realtime] subscribed to peacock-space-channel for familyCode=', familyCode);
 
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        console.warn('failed to remove supabase channel', e);
+      }
+      activeFamilyChannels.delete(familyCode);
     };
   }, [familyCode]);
 
