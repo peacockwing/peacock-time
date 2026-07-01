@@ -111,6 +111,8 @@ export default function DashboardView() {
 
   // Mobile filter toggle
   const [showFiltersMobile, setShowFiltersMobile] = React.useState(false);
+  // Desktop category pills visibility (hidden until user opens or selects)
+  const [showCategoryPills, setShowCategoryPills] = React.useState(false);
 
   // URL sync
   const router = useRouter();
@@ -322,7 +324,13 @@ export default function DashboardView() {
                   <div className="flex items-center space-x-2">
                     <div className="text-[11px] text-slate-400">필터:</div>
                     <div className="flex items-center gap-2">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="text-[11px] text-slate-400">필터:</div>
+                        <button onClick={() => setShowCategoryPills((s) => !s)} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border">
+                          🔎 {selectedCategories.length > 0 ? `(${selectedCategories.length})` : ''}
+                        </button>
+                      </div>
+                      <div className={`${showCategoryPills || selectedCategories.length > 0 ? 'flex flex-wrap gap-2' : 'hidden'}`}>
                         {CATEGORY_OPTIONS.map((opt) => (
                           <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
                             {opt.label}
