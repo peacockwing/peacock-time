@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDashboard } from '../../hooks/useDashboard';
+import type { BabyLog } from '../../types/baby';
 import VoiceControl from '../voice/VoiceControl';
 
 export default function DashboardView() {
@@ -37,6 +38,7 @@ export default function DashboardView() {
     setModalType,
     submitQuickEvent,
     handleDeleteLog,
+    handleUpdateLog,
     handleToggleSleep,
     handleChecklistToggle,
     handleInventoryStatus,
@@ -64,6 +66,85 @@ export default function DashboardView() {
     setSelectedCategories([]);
     setDateFrom(null);
     setDateTo(null);
+  };
+
+  const [editingLog, setEditingLog] = React.useState<BabyLog | null>(null);
+  const [editEventValue, setEditEventValue] = React.useState('');
+  const [editEventTime, setEditEventTime] = React.useState('');
+  const [editDisplayEmoji, setEditDisplayEmoji] = React.useState('');
+
+  const getDefaultEmojiForCategory = (categoryCode: string) => {
+    switch (categoryCode) {
+      case 'FEED':
+        return '🍼';
+      case 'TEMP':
+        return '🌡️';
+      case 'POOP_PEE':
+        return '💩';
+      case 'SLEEP':
+        return '😴';
+      default:
+        return '💙';
+    }
+  };
+
+  const normalizeEditEventValue = (value: string, categoryCode: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+
+    if (categoryCode === 'FEED') {
+      const digits = trimmed.match(/\d+/);
+      return digits ? `${Number(digits[0])}ml` : trimmed;
+    }
+    if (categoryCode === 'TEMP') {
+      const match = trimmed.match(/(\d+(?:\.\d+)?)/);
+      return match ? `${parseFloat(match[1]).toFixed(1)}도` : trimmed;
+    }
+    if (categoryCode === 'SLEEP') {
+      if (/깨어|깨/.test(trimmed)) return '잠에서 깨어남 ☀️';
+      if (/수면|시작/.test(trimmed)) return '수면 시작 💤';
+      return trimmed;
+    }
+    return trimmed;
+  };
+
+  const normalizeEditEventTime = (value: string) => {
+    const trimmed = value.trim();
+    const match = trimmed.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      const hour = String(Number(match[1])).padStart(2, '0');
+      const minute = String(Number(match[2])).padStart(2, '0');
+      return `${hour}:${minute}`;
+    }
+    return trimmed;
+  };
+
+  const openEditLog = (item: BabyLog) => {
+    setEditingLog(item);
+    setEditEventValue(item.event_value);
+    setEditEventTime(item.event_time);
+    setEditDisplayEmoji(item.display_emoji || getDefaultEmojiForCategory(item.category_code));
+  };
+
+  const closeEditLog = () => {
+    setEditingLog(null);
+    setEditEventValue('');
+    setEditEventTime('');
+    setEditDisplayEmoji('');
+  };
+
+  const applyEditLog = async () => {
+    if (!editingLog) return;
+    const normalizedValue = normalizeEditEventValue(editEventValue, editingLog.category_code);
+    const normalizedTime = normalizeEditEventTime(editEventTime);
+    const normalizedEmoji = editDisplayEmoji.trim() || getDefaultEmojiForCategory(editingLog.category_code);
+
+    await handleUpdateLog(editingLog.id, {
+      eventValue: normalizedValue,
+      eventTime: normalizedTime,
+      displayEmoji: normalizedEmoji,
+    });
+    closeEditLog();
   };
 
   // Preset helpers
@@ -370,7 +451,8 @@ export default function DashboardView() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between w-full">
                   <div className="flex flex-wrap items-center gap-3">
                     <button aria-label="toggle filters" onClick={toggleFilters} className={`text-[11px] px-3 py-1 rounded-full border transition-all ${filterActive ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'}`}>
-                      �{selectedCategories.length > 0 ? ` ${selectedCategories.length}` : ''}
+                      <span className="mr-1">🔍</span>
+                      {activeFilterCount > 0 ? `${activeFilterCount}개` : '필터'}
                     </button>
 
                     <div className={`${showFilterPanel ? 'flex flex-wrap gap-2 items-center animate-in fade-in slide-in-from-top-2 duration-200' : 'hidden'}`} ref={categoryPillsRef}>
@@ -474,7 +556,10 @@ export default function DashboardView() {
                                   </p>
                                 </div>
                               </div>
-                              <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
+                              <div className="flex items-center gap-2">
+                                <button className="text-[10px] text-slate-200 bg-slate-700/90 hover:bg-slate-700 rounded-full px-2 py-1 font-bold" onClick={() => openEditLog(item)}>수정 ✎</button>
+                                <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => handleDeleteLog(item.id)}>삭제 ✕</button>
+                              </div>
                             </div>
                           );
                         })}
@@ -614,6 +699,54 @@ export default function DashboardView() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingLog && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 w-full max-w-md p-5 rounded-3xl border border-slate-700 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-[0.2em]">기록 수정</p>
+                <h3 className="text-lg font-black text-white">{editingLog.category_name_han} 수정</h3>
+              </div>
+              <button onClick={closeEditLog} className="text-slate-400 text-xs font-bold">닫기</button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.15em]">값</label>
+              <input
+                value={editEventValue}
+                onChange={(e) => setEditEventValue(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
+                placeholder="예: 120ml, 37.4도, 배변 기록"
+              />
+              <p className="text-[10px] text-slate-500">자동 포맷: 수유는 ml, 체온은 도, 수면/배변은 간단한 한글로 입력해 주세요.</p>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.15em]">시간</label>
+              <input
+                type="time"
+                value={editEventTime}
+                onChange={(e) => setEditEventTime(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500">시간을 24시간 형식으로 선택하세요. 잘못 입력하면 그대로 저장됩니다.</p>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.15em]">이모지</label>
+              <input
+                value={editDisplayEmoji}
+                onChange={(e) => setEditDisplayEmoji(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
+                placeholder="예: 🍼, 🌡️, 💩"
+              />
+              <p className="text-[10px] text-slate-500">빈칸이면 기본 아이콘으로 채워집니다.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={closeEditLog} className="flex-1 rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-slate-700">취소</button>
+              <button onClick={applyEditLog} className="flex-1 rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-400">저장</button>
             </div>
           </div>
         </div>

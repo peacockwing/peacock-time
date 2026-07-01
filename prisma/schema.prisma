@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BabyLog {
+  id              Int     @id @default(autoincrement())
+  family_code     String
+  category_code   String
+  category_name_han String
+  event_value     String
+  event_date      String
+  event_time      String
+  display_emoji   String
+  actor_email     String
+}
+
+model Checklist {
+  id          Int     @id @default(autoincrement())
+  family_code String
+  period_type String
+  task_name   String
+  tips        String
+  is_completed Int
+}
+
+model Inventory {
+  id          Int     @id @default(autoincrement())
+  family_code String
+  section_name String
+  item_name   String
+  brand_name  String
+  target_cnt  Int
+  status      String
+  memo        String
+  hotdeal_price Int?
+}

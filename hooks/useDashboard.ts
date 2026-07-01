@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
-import { fetchBabyLogs, createBabyLog, deleteBabyLog, analyzeCry } from '../services/babyLogService';
+import { fetchBabyLogs, createBabyLog, deleteBabyLog, updateBabyLog, analyzeCry } from '../services/babyLogService';
 import { fetchTabData, updateTabItem } from '../services/tabsService';
 import { parseVoiceCommand } from '../services/voiceParser';
 import { speak } from '../services/tts';
@@ -393,6 +393,24 @@ export const useDashboard = () => {
     }
   };
 
+  const handleUpdateLog = async (id: number, updates: { eventValue?: string; eventTime?: string; displayEmoji?: string }) => {
+    if (!familyCode) return;
+    const prevLogs = logs;
+    setLogs((prev) => prev.map((item) => (item.id === id ? { ...item, ...{
+      event_value: updates.eventValue ?? item.event_value,
+      event_time: updates.eventTime ?? item.event_time,
+      display_emoji: updates.displayEmoji ?? item.display_emoji,
+    } } : item)));
+
+    const response = await updateBabyLog(id, familyCode, updates);
+    if (!response.success) {
+      console.error('로그 수정 실패:', response.error);
+      setLogs(prevLogs);
+      alert('기록 수정에 실패했습니다. 다시 시도해주세요.');
+      return;
+    }
+  };
+
   const handleChecklistToggle = async (id: number, currentStatus: number) => {
     const nextStatus = currentStatus === 1 ? 0 : 1;
     setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, is_completed: nextStatus } : item)));
@@ -643,6 +661,7 @@ export const useDashboard = () => {
     setModalType,
     submitQuickEvent,
     handleDeleteLog,
+    handleUpdateLog,
     handleToggleSleep,
     handleChecklistToggle,
     handleInventoryStatus,

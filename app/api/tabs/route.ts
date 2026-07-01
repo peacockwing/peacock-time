@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
-import { broadcastSocketAction } from '../../../lib/socketBroadcast';
+import { prisma } from '../../../lib/prisma';
 
 const CHECKLIST_TABLE = 'checklist';
 const INVENTORY_TABLE = 'inventory';
@@ -19,18 +18,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: '유효하지 않은 targetTab 값입니다.' }, { status: 400 });
     }
 
-    const table = targetTab === 'checklist' ? CHECKLIST_TABLE : INVENTORY_TABLE;
-    const { data, error } = await getSupabaseAdmin()
-      .from(table)
-      .select('*')
-      .eq('family_code', familyCode)
-      .order('id', { ascending: true });
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message || '데이터 조회 실패' }, { status: 500 });
+    let data: any[] = [];
+    if (targetTab === 'checklist') {
+      data = await prisma.checklist.findMany({
+        where: { family_code: familyCode },
+        orderBy: { id: 'asc' },
+      });
+    } else {
+      data = await prisma.inventory.findMany({
+        where: { family_code: familyCode },
+        orderBy: { id: 'asc' },
+      });
     }
 
-    return NextResponse.json({ success: true, data: data || [] });
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || '서버 에러' }, { status: 500 });
   }
@@ -59,23 +60,30 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: '업데이트할 필드가 없습니다.' }, { status: 400 });
     }
 
-    const { data, error } = await getSupabaseAdmin()
-      .from(table)
-      .update(updateData)
-      .eq('id', id)
-      .select();
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message || '업데이트 실패' }, { status: 500 });
+    let updated: any;
+    if (table === CHECKLIST_TABLE) {
+      updated = await prisma.checklist.updateMany({
+        where: { id },
+        data: updateData,
+      });
+    } else {
+      updated = await prisma.inventory.updateMany({
+        where: { id },
+        data: updateData,
+      });
     }
 
-    if (!data || data.length === 0) {
+    if (updated.count === 0) {
       return NextResponse.json({ success: false, error: '업데이트할 항목을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // Supabase Realtime subscriptions will notify clients of tab updates.
-
-    return NextResponse.json({ success: true, data: data[0] });
+    let data: any = null;
+    if (table === CHECKLIST_TABLE) {
+      data = await prisma.checklist.findUnique({ where: { id } });
+    } else {
+      data = await prisma.inventory.findUnique({ where: { id } });
+    }
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message || '서버 에러' }, { status: 500 });
   }

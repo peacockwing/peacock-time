@@ -29,6 +29,15 @@ export const deleteBabyLog = async (id: number, familyCode: string) => {
   return res.json();
 };
 
+export const updateBabyLog = async (id: number, familyCode: string, payload: { eventValue?: string; eventTime?: string; displayEmoji?: string }) => {
+  const res = await fetch(`${API_PATHS.babyLog}/${id}?familyCode=${encodeURIComponent(familyCode)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+};
+
 export const analyzeCry = async (payload: { avg_frequency: number; max_decibel: number; familyCode?: string }) => {
   const res = await fetch(API_PATHS.babyLogAnalyzeCry, {
     method: 'POST',
