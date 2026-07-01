@@ -183,7 +183,7 @@ export const useDashboard = () => {
             );
           }
 
-          if (prev.some((item) => item.id === newLog.id)) {
+          if (prev.some((item) => Number(item.id) === Number(newLog.id))) {
             return prev;
           }
 
@@ -197,7 +197,7 @@ export const useDashboard = () => {
         filter: `family_code=eq.${familyCode}`,
       }, (payload) => {
         console.debug('[realtime][baby_log][UPDATE] payload:', payload);
-        setLogs((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as BabyLog) : item)));
+        setLogs((prev) => prev.map((item) => (Number(item.id) === Number(payload.new.id) ? (payload.new as BabyLog) : item)));
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -206,7 +206,7 @@ export const useDashboard = () => {
         filter: `family_code=eq.${familyCode}`,
       }, (payload) => {
         console.debug('[realtime][baby_log][DELETE] payload:', payload);
-        setLogs((prev) => prev.filter((item) => item.id !== payload.old.id));
+        setLogs((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][INSERT] payload:', payload);
@@ -214,11 +214,11 @@ export const useDashboard = () => {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][UPDATE] payload:', payload);
-        setChecklist((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as ChecklistItem) : item)));
+        setChecklist((prev) => prev.map((item) => (Number(item.id) === Number(payload.new.id) ? (payload.new as ChecklistItem) : item)));
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][DELETE] payload:', payload);
-        setChecklist((prev) => prev.filter((item) => item.id !== payload.old.id));
+        setChecklist((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'inventory', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][inventory][INSERT] payload:', payload);
@@ -226,11 +226,11 @@ export const useDashboard = () => {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'inventory', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][inventory][UPDATE] payload:', payload);
-        setInventory((prev) => prev.map((item) => (item.id === payload.new.id ? (payload.new as InventoryItem) : item)));
+        setInventory((prev) => prev.map((item) => (Number(item.id) === Number(payload.new.id) ? (payload.new as InventoryItem) : item)));
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'inventory', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][inventory][DELETE] payload:', payload);
-        setInventory((prev) => prev.filter((item) => item.id !== payload.old.id));
+        setInventory((prev) => prev.filter((item) => Number(item.id) !== Number(payload.old.id)));
       })
       .subscribe();
 
