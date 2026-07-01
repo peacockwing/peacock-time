@@ -221,19 +221,7 @@ export default function DashboardView() {
       )}
       <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-slate-950 z-50 transition-transform duration-300 ease-in-out border-r border-slate-800 flex flex-col justify-between ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
-                <div className="flex items-center space-x-2 mt-2">
-                  <button onClick={() => {
-                    try {
-                      const url = window.location.href;
-                      navigator.clipboard.writeText(url);
-                      alert('필터 링크가 복사되었습니다.');
-                    } catch (e) {
-                      alert('복사에 실패했습니다. 주소창에서 수동 복사해주세요.');
-                    }
-                  }} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🔗 링크복사</button>
-                </div>
-
-                {Object.keys(filteredLogs).length === 0 ? (
+          <div className="p-5 border-b border-slate-900 bg-slate-900/40">
             <div className="flex items-center justify-between">
               <span className="text-lg font-black text-white">🦚 관제 메뉴</span>
               <button onClick={() => setIsMenuOpen(false)} className="text-slate-500 hover:text-white p-1 text-xs">닫기 ✕</button>
@@ -354,6 +342,17 @@ export default function DashboardView() {
                     <span className="text-slate-500">~</span>
                     <input type="date" value={dateTo ?? ''} onChange={(e) => setDateTo(e.target.value || null)} className="bg-slate-900 text-slate-200 rounded-md px-2 py-1 text-xs" />
                   </div>
+                <div className="mt-2">
+                  <button onClick={() => {
+                    try {
+                      const url = window.location.href;
+                      navigator.clipboard.writeText(url);
+                      alert('필터 링크가 복사되었습니다.');
+                    } catch (e) {
+                      alert('복사에 실패했습니다. 주소창에서 수동 복사해주세요.');
+                    }
+                  }} className="text-[11px] px-2 py-1 rounded-md bg-slate-800 text-slate-200">🔗 링크복사</button>
+                </div>
                 </div>
                 {showFiltersMobile && (
                   <div className="md:hidden fixed inset-0 z-50 bg-black/70 flex items-end">
