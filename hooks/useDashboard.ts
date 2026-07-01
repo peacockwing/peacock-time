@@ -42,6 +42,7 @@ export const useDashboard = () => {
   const [sleepTimerTitle, setSleepTimerTitle] = useState('깨어난 지');
   const lastSleepLogRef = useRef<BabyLog | null>(null);
   const lastRefetchAt = useRef<number>(0);
+  const supabaseChannelRef = useRef<any | null>(null);
   // Socket.IO client removed: using Supabase Realtime only
   const socketRef = useRef<any | null>(null);
 
@@ -160,6 +161,7 @@ export const useDashboard = () => {
       return payload.old?.id ?? payload.record?.id ?? payload.new?.id ?? payload.id ?? null;
     };
     const channel = supabase
+      const channel = supabase
       .channel(channelName, {
         config: {
           broadcast: { self: true },
@@ -270,6 +272,20 @@ export const useDashboard = () => {
       .subscribe();
 
     console.debug('[realtime] subscribed to', channelName, 'for familyCode=', familyCode);
+      // client-level broadcasts for fast-path sync (fallback)
+      .on('broadcast', { event: 'client_delete' }, (msg) => {
+        try {
+          console.debug('[realtime][broadcast][client_delete] msg:', msg);
+          const payload = msg.payload ?? msg;
+          const deletedId = payload?.id ?? payload?.deletedId ?? null;
+          if (deletedId == null) return;
+          const sid = String(deletedId);
+          setLogs((prev) => prev.filter((item) => String(item.id) !== sid));
+        } catch (e) {
+          console.warn('failed handling client_delete broadcast', e);
+        }
+      })
+      supabaseChannelRef.current = channel;
 
     return () => {
       try {
@@ -278,6 +294,7 @@ export const useDashboard = () => {
         console.warn('failed to remove supabase channel', e);
       }
       activeFamilyChannels.delete(familyCode);
+      supabaseChannelRef.current = null;
     };
   }, [familyCode]);
 
@@ -358,6 +375,15 @@ export const useDashboard = () => {
     const response = await deleteBabyLog(id, familyCode);
     if (!response.success) {
       console.error('삭제 실패:', response.error);
+    }
+    // fast-path: broadcast a client-level delete so other clients remove immediately
+    try {
+      const ch = supabaseChannelRef.current;
+      if (ch && typeof ch.send === 'function') {
+        ch.send({ type: 'broadcast', event: 'client_delete', payload: { id, familyCode } });
+      }
+    } catch (e) {
+      console.warn('client broadcast delete failed', e);
     }
   };
 
