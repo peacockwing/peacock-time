@@ -41,6 +41,7 @@ export const useDashboard = () => {
   const [sleepTimerText, setSleepTimerText] = useState('00시간 00분째');
   const [sleepTimerTitle, setSleepTimerTitle] = useState('깨어난 지');
   const lastSleepLogRef = useRef<BabyLog | null>(null);
+  const lastRefetchAt = useRef<number>(0);
   // Socket.IO client removed: using Supabase Realtime only
   const socketRef = useRef<any | null>(null);
 
@@ -217,7 +218,24 @@ export const useDashboard = () => {
         console.debug('[realtime][baby_log][DELETE] resolved id:', deletedId, 'types:', typeof deletedId);
         if (deletedId == null) return;
         const sid = String(deletedId);
-        setLogs((prev) => prev.filter((item) => String(item.id) !== sid));
+        setLogs((prev) => {
+          const filtered = prev.filter((item) => String(item.id) !== sid);
+          if (filtered.length === prev.length) {
+            console.warn('[realtime][baby_log][DELETE] no local item removed for id=', sid, '; will refetch logs to resync');
+            const now = Date.now();
+            if (now - lastRefetchAt.current > 5000) {
+              lastRefetchAt.current = now;
+              setTimeout(() => {
+                try {
+                  fetchLogs(familyCode);
+                } catch (e) {
+                  console.warn('refetch logs failed', e);
+                }
+              }, 250);
+            }
+          }
+          return filtered;
+        });
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'checklist', filter: `family_code=eq.${familyCode}` }, (payload) => {
         console.debug('[realtime][checklist][INSERT] payload:', payload);
