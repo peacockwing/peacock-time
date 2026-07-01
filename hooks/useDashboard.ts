@@ -269,10 +269,6 @@ export const useDashboard = () => {
         const sid = String(deletedId);
         setInventory((prev) => prev.filter((item) => String(item.id) !== sid));
       })
-      .subscribe();
-
-    console.debug('[realtime] subscribed to', channelName, 'for familyCode=', familyCode);
-      // client-level broadcasts for fast-path sync (fallback)
       .on('broadcast', { event: 'client_delete' }, (msg) => {
         try {
           console.debug('[realtime][broadcast][client_delete] msg:', msg);
@@ -285,7 +281,10 @@ export const useDashboard = () => {
           console.warn('failed handling client_delete broadcast', e);
         }
       })
-      supabaseChannelRef.current = channel;
+      .subscribe();
+
+    console.debug('[realtime] subscribed to', channelName, 'for familyCode=', familyCode);
+    supabaseChannelRef.current = channel;
 
     return () => {
       try {
