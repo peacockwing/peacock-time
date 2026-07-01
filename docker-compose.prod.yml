@@ -1,13 +1,22 @@
 version: '3.8'
 services:
   web:
+    env_file:
+      - .env
+      - .env.production
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_SOCKET_URL=https://yourdomain.example/socket
-      - REDIS_URL=${REDIS_URL:-}
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SOCKET_SECRET=${SOCKET_SECRET}
     restart: always
     networks:
       - front

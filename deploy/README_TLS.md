@@ -9,6 +9,11 @@ Quick steps (example):
 2. Create `.env.production` with:
    - `SOCKET_SECRET=...`
    - `REDIS_URL=redis://:password@redis-host:6379`
+   - `DATABASE_URL=postgresql://...` (production Postgres connection string; if using Supabase, use the Supabase Postgres URL)
+   - `SUPABASE_URL=https://your-project.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key`
+   - `SUPABASE_SERVICE_ROLE_KEY=your-service-role-key`
 3. Boot once without `nginx` TLS to allow certbot http challenge, or run certbot on the host to generate certs.
 4. Start production stack:
 
