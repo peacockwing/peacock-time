@@ -111,22 +111,53 @@ export default function DashboardView() {
 
   // Mobile filter toggle
   const [showFiltersMobile, setShowFiltersMobile] = React.useState(false);
-  // Desktop category pills visibility (hidden until user opens or selects)
-  const [showCategoryPills, setShowCategoryPills] = React.useState(false);
+  // Desktop filter panel visibility
+  const [showFilterPanel, setShowFilterPanel] = React.useState(false);
   const categoryPillsRef = React.useRef<HTMLDivElement | null>(null);
+  const activeFilterCount = selectedCategories.length + (dateFrom || dateTo ? 1 : 0);
+  const filterActive = showFilterPanel || activeFilterCount > 0;
+  const selectedCategoryLabels = CATEGORY_OPTIONS.filter((opt) => selectedCategories.includes(opt.code)).map((opt) => opt.label).join(' · ');
+  const activeFilterSummary = selectedCategoryLabels || (dateFrom || dateTo ? '날짜 필터' : '전체');
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const getThisWeekRange = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMon = (day + 6) % 7;
+    const start = new Date(now);
+    start.setDate(now.getDate() - diffToMon);
+    return { from: start.toISOString().slice(0, 10), to: todayIso };
+  };
+  const getThisMonthRange = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+  };
+  const getLast24hRange = () => {
+    const now = new Date();
+    const past = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return { from: past.toISOString().slice(0, 10), to: todayIso };
+  };
+  const getLast7DaysRange = () => {
+    const now = new Date();
+    const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return { from: past.toISOString().slice(0, 10), to: todayIso };
+  };
+  const isPresetActive = (range: { from: string; to: string }) => dateFrom === range.from && dateTo === range.to;
 
   React.useEffect(() => {
-    if (showCategoryPills && categoryPillsRef.current) {
+    if (showFilterPanel && categoryPillsRef.current) {
       const btn = categoryPillsRef.current.querySelector('button');
       if (btn) (btn as HTMLButtonElement).focus();
     }
-  }, [showCategoryPills]);
+  }, [showFilterPanel]);
 
   const toggleFilters = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setShowFiltersMobile((s) => !s);
     } else {
-      setShowCategoryPills((s) => !s);
+      setShowFilterPanel((s) => !s);
     }
   };
 
@@ -336,32 +367,30 @@ export default function DashboardView() {
             <div className="space-y-2">
               <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase px-1">Live Monitor Feed</h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-3">
-                    <button aria-label="toggle filters" onClick={toggleFilters} className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border md:mr-1">
-                      🔎{selectedCategories.length > 0 ? ` ${selectedCategories.length}` : ''}
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between w-full">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button aria-label="toggle filters" onClick={toggleFilters} className={`text-[11px] px-3 py-1 rounded-full border transition-all ${filterActive ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'}`}>
+                      �{selectedCategories.length > 0 ? ` ${selectedCategories.length}` : ''}
                     </button>
 
-                    <div ref={categoryPillsRef} className={`${showCategoryPills ? 'flex flex-wrap gap-2 items-center' : 'hidden'}`}>
+                    <div className={`${showFilterPanel ? 'flex flex-wrap gap-2 items-center animate-in fade-in slide-in-from-top-2 duration-200' : 'hidden'}`} ref={categoryPillsRef}>
                       {CATEGORY_OPTIONS.map((opt) => (
-                        <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`flex items-center text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50'}`}>
+                        <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`flex items-center text-[11px] px-2 py-1 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-300 border-slate-700/50 hover:bg-slate-700'}`}>
                           <span className="mr-2">{opt.label}</span>
                           <span className="text-[11px] opacity-80">📅</span>
                         </button>
                       ))}
-                      <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200">초기화</button>
-                      <button onClick={() => setShowCategoryPills(false)} className="text-[11px] px-2 py-1 rounded-full border bg-indigo-600 text-white ml-2">적용</button>
+                      <button onClick={resetFilters} className="text-[11px] px-2 py-1 rounded-full border bg-slate-700 text-slate-200 hover:bg-slate-600">초기화</button>
+                      <button onClick={() => setShowFilterPanel(false)} className="text-[11px] px-2 py-1 rounded-full border bg-indigo-600 text-white ml-2 hover:bg-indigo-500">적용</button>
                     </div>
 
                     <div className="hidden md:flex items-center gap-2 ml-2 bg-slate-900/40 p-1 rounded-full">
-                      <button onClick={setPresetToday} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📅 오늘</button>
-                      <button onClick={setPresetThisWeek} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🗓️ 이번주</button>
-                      <button onClick={setPresetThisMonth} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">📆 이번달</button>
-                      <button onClick={setPresetLast24h} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">⏱️ 24h</button>
-                      <button onClick={setPresetLast7Days} className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white">🕒 7일</button>
+                      <button onClick={setPresetToday} className={`text-[11px] px-3 py-1 rounded-full transition ${isPresetActive({ from: todayIso, to: todayIso }) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white'}`}>📅 오늘</button>
+                      <button onClick={setPresetThisWeek} className={`text-[11px] px-3 py-1 rounded-full transition ${isPresetActive(getThisWeekRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white'}`}>🗓️ 이번주</button>
+                      <button onClick={setPresetThisMonth} className={`text-[11px] px-3 py-1 rounded-full transition ${isPresetActive(getThisMonthRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white'}`}>📆 이번달</button>
+                      <button onClick={setPresetLast24h} className={`text-[11px] px-3 py-1 rounded-full transition ${isPresetActive(getLast24hRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white'}`}>⏱️ 24h</button>
+                      <button onClick={setPresetLast7Days} className={`text-[11px] px-3 py-1 rounded-full transition ${isPresetActive(getLast7DaysRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white'}`}>🕒 7일</button>
                     </div>
-
-                    {/* single unified filter toggle button used for both desktop and mobile */}
                   </div>
 
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-2 md:gap-4">
@@ -389,34 +418,34 @@ export default function DashboardView() {
                   <div className="md:hidden fixed inset-0 z-50 bg-black/70 flex items-end">
                     <div className="bg-slate-900 w-full p-4 rounded-t-3xl border-t border-slate-700">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="text-sm font-bold">필터</div>
+                        <div className="text-sm font-black text-white">필터</div>
                         <button onClick={() => setShowFiltersMobile(false)} className="text-sm text-slate-400">닫기 ✕</button>
                       </div>
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={setPresetToday} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">📅 오늘</button>
-                          <button onClick={setPresetThisWeek} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">🗓️ 이번주</button>
-                          <button onClick={setPresetThisMonth} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">📆 이번달</button>
-                          <button onClick={setPresetLast24h} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">⏱️ 지난24h</button>
-                          <button onClick={setPresetLast7Days} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">🕒 지난7일</button>
-                        </div>
-                        <div>
-                          <button onClick={() => setShowFiltersMobile((s) => !s)} className="text-[13px] px-3 py-2 rounded-md bg-slate-800 text-slate-200">카테고리 보기</button>
-                          <div className={`${showFiltersMobile ? 'block' : 'hidden'} mt-2`}> 
-                            <div className="flex flex-wrap gap-2">
-                              {CATEGORY_OPTIONS.map((opt) => (
-                                <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`flex items-center text-[13px] px-3 py-2 rounded-md border ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
-                                  <span className="mr-2">{opt.label}</span>
-                                  <span className="text-[12px]">📅</span>
-                                </button>
-                              ))}
-                            </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <p className="text-[12px] text-slate-400 uppercase tracking-widest">기간 프리셋</p>
+                          <div className="flex flex-wrap gap-2">
+                            <button onClick={() => { setPresetToday(); setShowFiltersMobile(false); }} className={`text-[13px] px-3 py-2 rounded-full transition ${isPresetActive({ from: todayIso, to: todayIso }) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-700'}`}>📅 오늘</button>
+                            <button onClick={() => { setPresetThisWeek(); setShowFiltersMobile(false); }} className={`text-[13px] px-3 py-2 rounded-full transition ${isPresetActive(getThisWeekRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-700'}`}>🗓️ 이번주</button>
+                            <button onClick={() => { setPresetThisMonth(); setShowFiltersMobile(false); }} className={`text-[13px] px-3 py-2 rounded-full transition ${isPresetActive(getThisMonthRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-700'}`}>📆 이번달</button>
+                            <button onClick={() => { setPresetLast24h(); setShowFiltersMobile(false); }} className={`text-[13px] px-3 py-2 rounded-full transition ${isPresetActive(getLast24hRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-700'}`}>⏱️ 24h</button>
+                            <button onClick={() => { setPresetLast7Days(); setShowFiltersMobile(false); }} className={`text-[13px] px-3 py-2 rounded-full transition ${isPresetActive(getLast7DaysRange()) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-indigo-700'}`}>🕒 7일</button>
                           </div>
                         </div>
-                        {/* 날짜 입력 캘린더 제거: 프리셋으로 기간 선택합니다. */}
-                        <div className="flex items-center space-x-2">
-                          <button onClick={resetFilters} className="px-3 py-2 bg-slate-800 rounded-md">초기화</button>
-                          <button onClick={() => { setShowFiltersMobile(false); }} className="px-3 py-2 bg-indigo-600 rounded-md text-white">적용</button>
+                        <div className="space-y-2">
+                          <p className="text-[12px] text-slate-400 uppercase tracking-widest">카테고리</p>
+                          <div className="flex flex-wrap gap-2">
+                            {CATEGORY_OPTIONS.map((opt) => (
+                              <button key={opt.code} onClick={() => toggleCategory(opt.code)} className={`flex items-center text-[13px] px-3 py-2 rounded-full border transition ${selectedCategories.includes(opt.code) ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'}`}>
+                                <span className="mr-2">{opt.label}</span>
+                                <span className="text-[12px] opacity-80">📅</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={resetFilters} className="flex-1 px-3 py-2 rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700">초기화</button>
+                          <button onClick={() => setShowFiltersMobile(false)} className="flex-1 px-3 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-500">적용</button>
                         </div>
                       </div>
                     </div>
