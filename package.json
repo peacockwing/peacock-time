@@ -10,6 +10,8 @@
     "prisma": "prisma",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:dbpush": "prisma db push",
+    "prisma:deploy": "prisma migrate deploy",
     "postinstall": "npm run prisma:generate"
   },
   "dependencies": {

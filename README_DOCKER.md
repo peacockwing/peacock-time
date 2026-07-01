@@ -14,7 +14,11 @@ node scripts/generate_socket_secret.js # optional -> appends SOCKET_SECRET to .e
 ```bash
 docker compose up --build -d
 ```
+4. Initialize the database schema (only required once after first deployment):
 
+```bash
+npm run prisma:dbpush
+```
 Note: This repository now configures Docker Compose to load `.env` and `.env.local` into containers.
 If you use custom shell environment variables instead of `.env.local`, ensure `DATABASE_URL` or `SUPABASE_DB_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `SOCKET_SECRET` are defined.
 
