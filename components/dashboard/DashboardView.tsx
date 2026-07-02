@@ -10,6 +10,7 @@ import QuickGrid from '../activities/QuickGrid';
 import ActivityForm from '../activities/ActivityForm';
 import ActivityFeed from '../activities/ActivityFeed';
 import CategorySettingsView from '../activities/CategorySettingsView';
+import RecommendationBar from '../activities/RecommendationBar';
 
 export default function DashboardView() {
   const {
@@ -57,6 +58,10 @@ export default function DashboardView() {
     isVoiceListening,
     startVoiceCommand,
     stopVoiceCommand,
+    recommendations,
+    notificationsEnabled,
+    requestNotifications,
+    disableNotifications,
   } = useActivities(familyCode, userEmail);
 
   const [formCategory, setFormCategory] = React.useState<ActivityCategoryCode | 'CUSTOM' | null>(null);
@@ -216,6 +221,14 @@ export default function DashboardView() {
                 <span className="text-xs font-bold text-slate-200">{isSleeping ? '아기 깨어남' : '아기 잠듦'}</span>
               </button>
             </div>
+
+            <RecommendationBar
+              recommendations={recommendations}
+              categorySettings={categorySettings}
+              notificationsEnabled={notificationsEnabled}
+              onRequestNotifications={requestNotifications}
+              onDisableNotifications={disableNotifications}
+            />
 
             <QuickGrid categorySettings={categorySettings} customFields={customFields} onPick={openQuickForm} />
 

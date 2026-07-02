@@ -14,12 +14,15 @@ import {
   updateCustomField as apiUpdateCustomField,
   deleteCustomField as apiDeleteCustomField,
   analyzeCry as apiAnalyzeCry,
+  fetchRecommendations,
 } from '../services/activityService';
 import { parseVoiceCommand } from '../services/voiceParser';
 import { speak } from '../services/tts';
-import type { Activity, CategorySettingEntry, CustomFieldDefinition } from '../types/activity';
+import type { Activity, CategorySettingEntry, CustomFieldDefinition, Recommendation } from '../types/activity';
 
 const activeActivityChannels = new Set<string>();
+const NOTIFICATION_PREF_KEY = 'peacock_notifications_enabled';
+const NOTIFIED_KEY = 'peacock_notified_predictions';
 
 export const useActivities = (familyCode: string | null, userEmail: string) => {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -44,12 +47,33 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     if (data.success) setCustomFields(data.customFields);
   }, []);
 
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const loadRecommendations = useCallback(async (code: string) => {
+    const data = await fetchRecommendations(code);
+    if (data.success) setRecommendations(data.recommendations);
+  }, []);
+
   useEffect(() => {
     if (!familyCode) return;
     loadActivities(familyCode);
     loadCategorySettings(familyCode);
     loadCustomFields(familyCode);
-  }, [familyCode, loadActivities, loadCategorySettings, loadCustomFields]);
+    loadRecommendations(familyCode);
+  }, [familyCode, loadActivities, loadCategorySettings, loadCustomFields, loadRecommendations]);
+
+  // Predictions shift every time a new log lands, so recompute whenever the
+  // activity list changes (debounced - creates/updates/deletes can arrive in
+  // quick bursts, e.g. from realtime + the local optimistic update both firing).
+  const recommendationsDebounceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!familyCode) return;
+    if (recommendationsDebounceRef.current) window.clearTimeout(recommendationsDebounceRef.current);
+    recommendationsDebounceRef.current = window.setTimeout(() => loadRecommendations(familyCode), 500);
+    return () => {
+      if (recommendationsDebounceRef.current) window.clearTimeout(recommendationsDebounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activities.length, familyCode]);
 
   // Realtime: activity_log rows join several detail tables, so rather than
   // reassembling partial payloads client-side, any change just triggers a
@@ -344,6 +368,70 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     setIsVoiceListening(false);
   };
 
+  // ---- Notifications: fire a local browser notification once a prediction's
+  // ETA arrives. Only works while this tab is open (no service worker / push
+  // subscription) - that's a known limitation, not a bug.
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setNotificationsEnabled(localStorage.getItem(NOTIFICATION_PREF_KEY) === 'true' && Notification.permission === 'granted');
+  }, []);
+
+  const requestNotifications = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      alert('이 브라우저는 알림을 지원하지 않습니다.');
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    const granted = permission === 'granted';
+    setNotificationsEnabled(granted);
+    localStorage.setItem(NOTIFICATION_PREF_KEY, String(granted));
+    if (!granted) alert('알림 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.');
+  };
+
+  const disableNotifications = () => {
+    setNotificationsEnabled(false);
+    localStorage.setItem(NOTIFICATION_PREF_KEY, 'false');
+  };
+
+  useEffect(() => {
+    if (!notificationsEnabled || typeof window === 'undefined') return;
+
+    const checkAndNotify = () => {
+      if (Notification.permission !== 'granted') return;
+      const enabledCodes = new Set(categorySettings.filter((c) => c.isEnabled).map((c) => c.category));
+      const notified: string[] = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]');
+      const notifiedSet = new Set(notified);
+      const now = Date.now();
+      let changed = false;
+
+      for (const rec of recommendations) {
+        if (!enabledCodes.has(rec.category)) continue;
+        if (new Date(rec.predictedNextTime).getTime() > now) continue;
+        const key = `${rec.category}:${rec.predictedNextTime}`;
+        if (notifiedSet.has(key)) continue;
+
+        new Notification(`${rec.emoji} ${rec.label} 시간이 됐어요`, {
+          body: `평균 주기 기준 예상 시간이 지났습니다.`,
+          tag: rec.category,
+        });
+        notifiedSet.add(key);
+        changed = true;
+      }
+
+      if (changed) {
+        // Cap stored keys so this doesn't grow unbounded over weeks of use.
+        const trimmed = Array.from(notifiedSet).slice(-200);
+        localStorage.setItem(NOTIFIED_KEY, JSON.stringify(trimmed));
+      }
+    };
+
+    checkAndNotify();
+    const interval = setInterval(checkAndNotify, 60000);
+    return () => clearInterval(interval);
+  }, [notificationsEnabled, recommendations, categorySettings]);
+
   return {
     activities,
     loading,
@@ -367,5 +455,9 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     isVoiceListening,
     startVoiceCommand,
     stopVoiceCommand,
+    recommendations,
+    notificationsEnabled,
+    requestNotifications,
+    disableNotifications,
   };
 };

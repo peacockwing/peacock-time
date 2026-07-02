@@ -5,6 +5,7 @@ export const API_PATHS = {
   cryAnalysis: '/api/cry-analysis',
   customFields: '/api/custom-fields',
   categorySettings: '/api/settings/categories',
+  recommendations: '/api/recommendations',
 };
 
 export const fetchJson = async (url: string, options?: RequestInit) => {

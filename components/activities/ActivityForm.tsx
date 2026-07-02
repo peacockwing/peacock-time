@@ -13,7 +13,22 @@ const toLocalInputValue = (iso?: string | null) => {
 
 // Categories with a photo-analysis endpoint wired up (lib/activityCategories.ts
 // field keys must match what /api/photo-analysis returns for that category).
-const PHOTO_ANALYSIS_CATEGORIES = new Set(['FORMULA', 'DIAPER']);
+// BATH and TUMMY_TIME are intentionally excluded - they have no extra fields
+// to fill in, so a photo wouldn't save any typing. BREASTFEEDING, PUMPING,
+// HOSPITAL, and TEMPERATURE are excluded because the spec's photo direction
+// for those was never about auto-filling this category's own fields.
+const PHOTO_ANALYSIS_CATEGORIES = new Set([
+  'FORMULA',
+  'PUMPED_MILK_FEEDING',
+  'BABY_FOOD',
+  'DIAPER',
+  'SLEEP',
+  'MEDICATION',
+  'SNACK',
+  'MILK',
+  'WATER',
+  'PLAY',
+]);
 
 const fileToBase64 = (file: File): Promise<{ data: string; mediaType: string }> =>
   new Promise((resolve, reject) => {

@@ -33,3 +33,13 @@ export interface CategorySettingEntry {
   isEnabled: boolean;
   displayOrder: number;
 }
+
+export interface Recommendation {
+  category: ActivityCategoryCode;
+  label: string;
+  emoji: string;
+  sampleSize: number;
+  avgIntervalMinutes: number;
+  lastStartTime: string;
+  predictedNextTime: string;
+}

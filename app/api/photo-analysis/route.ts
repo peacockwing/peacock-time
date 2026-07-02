@@ -45,6 +45,143 @@ const SCHEMAS: Record<string, { prompt: string; schema: Record<string, unknown> 
       additionalProperties: false,
     },
   },
+  PUMPED_MILK_FEEDING: {
+    prompt:
+      'This photo shows a bottle of pumped breast milk. Read the ml markings on the bottle to determine the filled level (the amount in the bottle). If not legible, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        target_amount_ml: {
+          type: ['integer', 'null'],
+          description: 'The ml measurement mark at the filled level of the bottle, or null if not readable',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['target_amount_ml', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  BABY_FOOD: {
+    prompt:
+      'This photo shows baby food or the ingredients being prepared for it. Identify the type of baby food (main ingredient or dish name). If not identifiable, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        food_type: {
+          type: ['string', 'null'],
+          description: 'The type/name of the baby food or its main ingredient, or null if not identifiable',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['food_type', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  SLEEP: {
+    prompt:
+      "This photo shows a baby sleeping. Based on visual cues like lighting (daylight vs dark/night lighting) and surroundings, judge whether this looks like a daytime nap or nighttime sleep. If it's genuinely ambiguous, return null rather than guessing.",
+    schema: {
+      type: 'object',
+      properties: {
+        sleep_type: {
+          type: ['string', 'null'],
+          enum: ['NAP', 'NIGHT', null],
+          description: 'NAP if the photo suggests daytime, NIGHT if nighttime, null if unclear',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['sleep_type', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  MEDICATION: {
+    prompt:
+      "This photo shows a medication package, bottle, or label for a baby. Identify the medication's name if visible on the packaging. If not legible, return null rather than guessing.",
+    schema: {
+      type: 'object',
+      properties: {
+        medication_name: {
+          type: ['string', 'null'],
+          description: 'Name of the medication as printed on the packaging, or null if not legible',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['medication_name', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  SNACK: {
+    prompt:
+      'This photo shows a snack for a baby/toddler. Identify the type of snack and estimate its calorie content for a typical serving. If not identifiable, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        snack_type: {
+          type: ['string', 'null'],
+          description: 'Name/type of the snack visible, or null if not identifiable',
+        },
+        calories: {
+          type: ['integer', 'null'],
+          description: 'Estimated calories for a typical serving of this snack, or null if not estimable',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['snack_type', 'calories', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  MILK: {
+    prompt:
+      'This photo shows milk for a baby/toddler (carton, bottle, or cup). Identify the type/brand of milk and read the ml amount if a measurement marking is visible. If not identifiable, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        milk_type: {
+          type: ['string', 'null'],
+          description: 'Type/brand of milk visible on packaging, or null if not identifiable',
+        },
+        amount_ml: {
+          type: ['integer', 'null'],
+          description: 'Amount of milk in ml if a measurement marking is visible, or null',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['milk_type', 'amount_ml', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  WATER: {
+    prompt:
+      'This photo shows water for a baby/toddler in a bottle or cup. Read the ml measurement marking to determine the amount. If not readable, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        amount_ml: {
+          type: ['integer', 'null'],
+          description: 'Amount of water in ml based on a visible measurement marking, or null if not readable',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['amount_ml', 'confidence'],
+      additionalProperties: false,
+    },
+  },
+  PLAY: {
+    prompt:
+      'This photo shows a baby/toddler playing. Identify the type of play or activity taking place (e.g. block play, reading, outdoor play). If not identifiable, return null rather than guessing.',
+    schema: {
+      type: 'object',
+      properties: {
+        play_type: {
+          type: ['string', 'null'],
+          description: 'Type of play/activity visible, or null if not identifiable',
+        },
+        confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['play_type', 'confidence'],
+      additionalProperties: false,
+    },
+  },
 };
 
 export async function POST(request: Request) {

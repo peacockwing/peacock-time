@@ -1,5 +1,5 @@
 import { API_PATHS, fetchJson } from '../lib/api';
-import type { Activity, CategorySettingEntry, CustomFieldDefinition } from '../types/activity';
+import type { Activity, CategorySettingEntry, CustomFieldDefinition, Recommendation } from '../types/activity';
 
 export const fetchActivities = async (familyCode: string, params?: { category?: string; from?: string; to?: string }) => {
   const query = new URLSearchParams({ familyCode, t: String(Date.now()) });
@@ -57,3 +57,8 @@ export const saveCategorySettings = async (familyCode: string, categories: { cat
 
 export const analyzeCry = async (payload: { avg_frequency: number; max_decibel: number; familyCode?: string }) =>
   fetchJson(API_PATHS.cryAnalysis, { method: 'POST', body: JSON.stringify(payload) });
+
+export const fetchRecommendations = async (familyCode: string) => {
+  const res = await fetch(`${API_PATHS.recommendations}?familyCode=${encodeURIComponent(familyCode)}`, { cache: 'no-store' });
+  return res.json() as Promise<{ success: boolean; recommendations: Recommendation[] }>;
+};
