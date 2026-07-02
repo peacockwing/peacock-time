@@ -6,6 +6,7 @@ export const API_PATHS = {
   customFields: '/api/custom-fields',
   categorySettings: '/api/settings/categories',
   recommendations: '/api/recommendations',
+  assistant: '/api/assistant',
 };
 
 export const fetchJson = async (url: string, options?: RequestInit) => {

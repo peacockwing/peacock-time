@@ -11,6 +11,7 @@ import ActivityForm from '../activities/ActivityForm';
 import ActivityFeed from '../activities/ActivityFeed';
 import CategorySettingsView from '../activities/CategorySettingsView';
 import RecommendationBar from '../activities/RecommendationBar';
+import AssistantChat from '../assistant/AssistantChat';
 
 export default function DashboardView() {
   const {
@@ -122,6 +123,7 @@ export default function DashboardView() {
           {activeMenu === 'prep-list' && '🎁 출산 인벤토리'}
           {activeMenu === 'after-delivery' && '🚨 아빠 필수 미션'}
           {activeMenu === 'record-settings' && '⚙️ 기록 항목 설정'}
+          {activeMenu === 'assistant' && '🤖 AI 도우미'}
         </h1>
         <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-bold">🦚</div>
       </header>
@@ -192,6 +194,17 @@ export default function DashboardView() {
               }`}
             >
               <span>⚙️</span> <span>기록 항목 설정</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveMenu('assistant');
+                setIsMenuOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3.5 rounded-xl text-xs font-bold flex items-center space-x-3 transition-all ${
+                activeMenu === 'assistant' ? 'bg-indigo-950 text-indigo-300 font-black' : 'text-slate-400 hover:bg-slate-900'
+              }`}
+            >
+              <span>🤖</span> <span>AI 도우미</span>
             </button>
           </nav>
         </div>
@@ -397,6 +410,12 @@ export default function DashboardView() {
               onUpdateCustomField={updateCustomField}
               onDeleteCustomField={deleteCustomField}
             />
+          </div>
+        )}
+
+        {activeMenu === 'assistant' && familyCode && (
+          <div className="animate-in fade-in duration-300 -mt-4">
+            <AssistantChat familyCode={familyCode} />
           </div>
         )}
       </div>
