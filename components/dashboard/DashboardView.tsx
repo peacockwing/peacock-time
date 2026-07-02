@@ -415,7 +415,7 @@ export default function DashboardView() {
 
         {activeMenu === 'assistant' && familyCode && (
           <div className="animate-in fade-in duration-300 -mt-4">
-            <AssistantChat familyCode={familyCode} />
+            <AssistantChat familyCode={familyCode} userEmail={userEmail} />
           </div>
         )}
       </div>

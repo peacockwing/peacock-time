@@ -280,6 +280,24 @@ model CategorySetting {
   @@map("category_setting")
 }
 
+enum AssistantRole {
+  USER
+  ASSISTANT
+}
+
+// AI 도우미 대화 기록 - 가족 단위로 저장, 새로고침/기기 전환에도 유지됨.
+model AssistantMessage {
+  id          BigInt        @id @default(autoincrement())
+  family_code String
+  role        AssistantRole
+  content     String
+  actor_email String?
+  created_at  DateTime      @default(now())
+
+  @@index([family_code, created_at])
+  @@map("assistant_message")
+}
+
 model Checklist {
   id           BigInt    @id @default(autoincrement())
   family_code  String

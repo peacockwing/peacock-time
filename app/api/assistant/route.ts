@@ -77,7 +77,7 @@ Rules:
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { familyCode, question, history } = body;
+    const { familyCode, question, actorEmail } = body;
 
     if (!familyCode || !question || typeof question !== 'string') {
       return NextResponse.json({ success: false, error: 'familyCode와 question이 필요합니다.' }, { status: 400 });
@@ -86,12 +86,14 @@ export async function POST(request: Request) {
     const anthropic = getAnthropic();
     const prisma = getPrisma();
 
-    const priorTurns = Array.isArray(history)
-      ? history
-          .filter((m: any) => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'assistant'))
-          .slice(-10)
-          .map((m: any) => ({ role: m.role, content: m.text }))
-      : [];
+    const priorRows = await prisma.assistantMessage.findMany({
+      where: { family_code: familyCode },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+    });
+    const priorTurns = priorRows
+      .reverse()
+      .map((m) => ({ role: m.role === 'USER' ? 'user' : 'assistant', content: m.content }));
 
     let messages: any[] = [...priorTurns, { role: 'user', content: question }];
 
@@ -111,6 +113,14 @@ export async function POST(request: Request) {
       if (response.stop_reason !== 'tool_use') {
         const textBlock = response.content.find((b: any) => b.type === 'text');
         const answer = textBlock && 'text' in textBlock ? textBlock.text : '';
+
+        await prisma.assistantMessage.createMany({
+          data: [
+            { family_code: familyCode, role: 'USER', content: question, actor_email: actorEmail || null },
+            { family_code: familyCode, role: 'ASSISTANT', content: answer, actor_email: null },
+          ],
+        });
+
         return NextResponse.json({ success: true, answer });
       }
 
