@@ -5,20 +5,34 @@ export interface AssistantTurn {
   text: string;
 }
 
-export const askAssistant = async (familyCode: string, question: string, actorEmail?: string | null) =>
+export interface AssistantConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
+export const askAssistant = async (familyCode: string, question: string, conversationId: string | null, actorEmail?: string | null) =>
   fetchJson(API_PATHS.assistant, {
     method: 'POST',
-    body: JSON.stringify({ familyCode, question, actorEmail }),
-  }) as Promise<{ success: boolean; answer: string; error?: string }>;
+    body: JSON.stringify({ familyCode, question, conversationId, actorEmail }),
+  }) as Promise<{ success: boolean; answer: string; conversationId: string; title?: string; error?: string }>;
 
-export const fetchAssistantHistory = async (familyCode: string) =>
-  fetchJson(`${API_PATHS.assistantHistory}?familyCode=${encodeURIComponent(familyCode)}`) as Promise<{
+export const fetchConversations = async (familyCode: string) =>
+  fetchJson(`${API_PATHS.assistantConversations}?familyCode=${encodeURIComponent(familyCode)}`) as Promise<{
     success: boolean;
+    conversations: AssistantConversationSummary[];
+    error?: string;
+  }>;
+
+export const fetchConversationMessages = async (familyCode: string, conversationId: string) =>
+  fetchJson(`${API_PATHS.assistantConversations}/${conversationId}?familyCode=${encodeURIComponent(familyCode)}`) as Promise<{
+    success: boolean;
+    title: string;
     messages: AssistantTurn[];
     error?: string;
   }>;
 
-export const clearAssistantHistory = async (familyCode: string) =>
-  fetchJson(`${API_PATHS.assistantHistory}?familyCode=${encodeURIComponent(familyCode)}`, {
+export const deleteConversation = async (familyCode: string, conversationId: string) =>
+  fetchJson(`${API_PATHS.assistantConversations}/${conversationId}?familyCode=${encodeURIComponent(familyCode)}`, {
     method: 'DELETE',
   }) as Promise<{ success: boolean; error?: string }>;

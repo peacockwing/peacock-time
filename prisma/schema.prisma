@@ -285,16 +285,33 @@ enum AssistantRole {
   ASSISTANT
 }
 
-// AI 도우미 대화 기록 - 가족 단위로 저장, 새로고침/기기 전환에도 유지됨.
-model AssistantMessage {
-  id          BigInt        @id @default(autoincrement())
+// AI 도우미 대화 세션 - 제미나이/챗GPT처럼 가족당 여러 개의 대화를 유지하고
+// 좌측 목록에서 골라 이어서 대화할 수 있도록 함. title은 첫 질문을 바탕으로
+// LLM이 짧게 생성.
+model AssistantConversation {
+  id          BigInt   @id @default(autoincrement())
   family_code String
-  role        AssistantRole
-  content     String
-  actor_email String?
-  created_at  DateTime      @default(now())
+  title       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  @@index([family_code, created_at])
+  messages AssistantMessage[]
+
+  @@index([family_code, updated_at(sort: Desc)])
+  @@map("assistant_conversation")
+}
+
+model AssistantMessage {
+  id              BigInt                 @id @default(autoincrement())
+  conversation_id BigInt
+  conversation    AssistantConversation  @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  family_code     String
+  role            AssistantRole
+  content         String
+  actor_email     String?
+  created_at      DateTime               @default(now())
+
+  @@index([conversation_id, created_at])
   @@map("assistant_message")
 }
 

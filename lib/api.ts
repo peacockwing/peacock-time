@@ -7,7 +7,7 @@ export const API_PATHS = {
   categorySettings: '/api/settings/categories',
   recommendations: '/api/recommendations',
   assistant: '/api/assistant',
-  assistantHistory: '/api/assistant/history',
+  assistantConversations: '/api/assistant/conversations',
 };
 
 export const fetchJson = async (url: string, options?: RequestInit) => {

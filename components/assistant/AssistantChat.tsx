@@ -1,7 +1,14 @@
 'use client';
 
 import React from 'react';
-import { askAssistant, fetchAssistantHistory, clearAssistantHistory, type AssistantTurn } from '../../services/assistantService';
+import {
+  askAssistant,
+  fetchConversations,
+  fetchConversationMessages,
+  deleteConversation,
+  type AssistantTurn,
+  type AssistantConversationSummary,
+} from '../../services/assistantService';
 import { speak } from '../../services/tts';
 
 interface AssistantChatProps {
@@ -17,32 +24,32 @@ const EXAMPLE_QUESTIONS = [
 ];
 
 export default function AssistantChat({ familyCode, userEmail }: AssistantChatProps) {
+  const [conversations, setConversations] = React.useState<AssistantConversationSummary[]>([]);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [activeTitle, setActiveTitle] = React.useState<string>('새 대화');
   const [history, setHistory] = React.useState<AssistantTurn[]>([]);
-  const [historyLoaded, setHistoryLoaded] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [switchingConv, setSwitchingConv] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [voiceOutputOn, setVoiceOutputOn] = React.useState(true);
   const [isListening, setIsListening] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const recognitionRef = React.useRef<any | null>(null);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetchAssistantHistory(familyCode);
-        if (!cancelled && res.success) setHistory(res.messages);
-      } catch (e) {
-        // 히스토리 로드 실패는 무시하고 빈 대화로 시작
-      } finally {
-        if (!cancelled) setHistoryLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadConversations = React.useCallback(async () => {
+    try {
+      const res = await fetchConversations(familyCode);
+      if (res.success) setConversations(res.conversations);
+    } catch (e) {
+      // 목록 로드 실패는 조용히 무시 (새 대화는 계속 가능)
+    }
   }, [familyCode]);
+
+  React.useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -59,6 +66,48 @@ export default function AssistantChat({ familyCode, userEmail }: AssistantChatPr
     };
   }, []);
 
+  const selectConversation = async (id: string) => {
+    if (id === activeId) {
+      setSidebarOpen(false);
+      return;
+    }
+    window.speechSynthesis?.cancel();
+    setSwitchingConv(true);
+    setSidebarOpen(false);
+    try {
+      const res = await fetchConversationMessages(familyCode, id);
+      if (!res.success) throw new Error(res.error);
+      setActiveId(id);
+      setActiveTitle(res.title);
+      setHistory(res.messages);
+    } catch (e) {
+      setError('대화를 불러오지 못했습니다.');
+    } finally {
+      setSwitchingConv(false);
+    }
+  };
+
+  const startNewConversation = () => {
+    window.speechSynthesis?.cancel();
+    setActiveId(null);
+    setActiveTitle('새 대화');
+    setHistory([]);
+    setError(null);
+    setSidebarOpen(false);
+  };
+
+  const removeConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('이 대화를 삭제할까요?')) return;
+    try {
+      await deleteConversation(familyCode, id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (id === activeId) startNewConversation();
+    } catch (e) {
+      setError('대화 삭제에 실패했습니다.');
+    }
+  };
+
   const send = async (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || loading) return;
@@ -70,10 +119,13 @@ export default function AssistantChat({ familyCode, userEmail }: AssistantChatPr
     setLoading(true);
 
     try {
-      const res = await askAssistant(familyCode, trimmed, userEmail);
+      const res = await askAssistant(familyCode, trimmed, activeId, userEmail);
       if (!res.success) throw new Error(res.error || '답변을 가져오지 못했습니다.');
       setHistory([...nextHistory, { role: 'assistant', text: res.answer }]);
+      setActiveId(res.conversationId);
+      if (res.title) setActiveTitle(res.title);
       if (voiceOutputOn) speak(res.answer);
+      loadConversations();
     } catch (e: any) {
       setError(e.message || '오류가 발생했습니다.');
     } finally {
@@ -128,99 +180,146 @@ export default function AssistantChat({ familyCode, userEmail }: AssistantChatPr
     setIsListening(false);
   };
 
-  const startNewConversation = async () => {
-    setHistory([]);
-    window.speechSynthesis?.cancel();
-    try {
-      await clearAssistantHistory(familyCode);
-    } catch (e) {
-      // 서버 삭제 실패해도 화면은 이미 비워진 상태로 둔다
-    }
+  const formatRelativeDate = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] -mx-4 -mb-4">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 py-2">
-        {historyLoaded && history.length === 0 && (
-          <div className="space-y-3 pt-4">
-            <p className="text-xs text-slate-500 text-center">기록을 바탕으로 질문에 답해드려요.</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {EXAMPLE_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => send(q)}
-                  className="text-[11px] px-3 py-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+    <div className="relative flex h-[calc(100vh-7rem)] -mx-4 -mb-4 overflow-hidden">
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
+      )}
 
-        {history.map((turn, i) => (
-          <div key={i} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
-                turn.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-800 border border-slate-700/60 text-slate-200'
-              }`}
-            >
-              {turn.text}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-slate-800 border border-slate-700/60 rounded-2xl px-3.5 py-2.5 text-xs text-slate-400">답변 생성 중…</div>
-          </div>
-        )}
-
-        {error && <p className="text-[11px] text-rose-400 text-center">{error}</p>}
-      </div>
-
-      <div className="border-t border-slate-800 bg-slate-950 p-3 flex items-center gap-2">
-        {history.length > 0 && (
+      <div
+        className={`fixed left-0 top-0 bottom-0 z-50 w-72 max-w-[80vw] bg-slate-950 border-r border-slate-800 flex flex-col transition-transform duration-200 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="p-3 border-b border-slate-800">
           <button
             onClick={startNewConversation}
-            className="shrink-0 text-[10px] px-2 py-2.5 rounded-xl bg-slate-800 text-slate-400 font-bold"
+            className="w-full flex items-center gap-2 justify-center rounded-xl bg-indigo-500 px-3 py-2.5 text-sm font-bold text-white"
           >
-            새 대화
+            <span>＋</span> 새 대화
           </button>
-        )}
-        <button
-          onClick={() => setVoiceOutputOn((v) => !v)}
-          title={voiceOutputOn ? '음성 답변 끄기' : '음성 답변 켜기'}
-          className={`shrink-0 rounded-xl px-2.5 py-2.5 text-sm ${voiceOutputOn ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}
-        >
-          {voiceOutputOn ? '🔊' : '🔇'}
-        </button>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') send(input);
-          }}
-          placeholder="예: 어제 이유식 뭐 먹었어?"
-          className="flex-1 min-w-0 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
-        />
-        <button
-          onClick={isListening ? stopVoiceInput : startVoiceInput}
-          disabled={loading}
-          title={isListening ? '음성 인식 중지' : '음성으로 질문하기'}
-          className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40 ${
-            isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800 text-slate-300'
-          }`}
-        >
-          🎤
-        </button>
-        <button
-          onClick={() => send(input)}
-          disabled={loading || !input.trim()}
-          className="shrink-0 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
-        >
-          전송
-        </button>
+        </div>
+        <div className="flex-1 overflow-y-auto py-2">
+          {conversations.length === 0 && (
+            <p className="text-[11px] text-slate-500 text-center pt-6">대화 기록이 없어요.</p>
+          )}
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => selectConversation(c.id)}
+              className={`group flex items-center gap-2 mx-2 mb-1 px-3 py-2.5 rounded-xl cursor-pointer ${
+                c.id === activeId ? 'bg-slate-800' : 'hover:bg-slate-900'
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-200 truncate">{c.title}</p>
+                <p className="text-[10px] text-slate-500">{formatRelativeDate(c.updatedAt)}</p>
+              </div>
+              <button
+                onClick={(e) => removeConversation(c.id, e)}
+                className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 text-xs px-1.5 py-1"
+                title="삭제"
+              >
+                🗑
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-800 bg-slate-950">
+          <button onClick={() => setSidebarOpen(true)} className="shrink-0 text-slate-300 text-lg px-1">
+            ☰
+          </button>
+          <p className="flex-1 min-w-0 truncate text-xs font-bold text-slate-300">{activeTitle}</p>
+          <button
+            onClick={() => setVoiceOutputOn((v) => !v)}
+            title={voiceOutputOn ? '음성 답변 끄기' : '음성 답변 켜기'}
+            className={`shrink-0 rounded-xl px-2.5 py-1.5 text-sm ${voiceOutputOn ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}
+          >
+            {voiceOutputOn ? '🔊' : '🔇'}
+          </button>
+        </div>
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 py-3">
+          {switchingConv && <p className="text-xs text-slate-500 text-center pt-4">불러오는 중…</p>}
+
+          {!switchingConv && history.length === 0 && (
+            <div className="space-y-3 pt-4">
+              <p className="text-xs text-slate-500 text-center">기록을 바탕으로 질문에 답해드려요.</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {EXAMPLE_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => send(q)}
+                    className="text-[11px] px-3 py-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!switchingConv &&
+            history.map((turn, i) => (
+              <div key={i} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
+                    turn.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-800 border border-slate-700/60 text-slate-200'
+                  }`}
+                >
+                  {turn.text}
+                </div>
+              </div>
+            ))}
+
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-slate-800 border border-slate-700/60 rounded-2xl px-3.5 py-2.5 text-xs text-slate-400">답변 생성 중…</div>
+            </div>
+          )}
+
+          {error && <p className="text-[11px] text-rose-400 text-center">{error}</p>}
+        </div>
+
+        <div className="border-t border-slate-800 bg-slate-950 p-3 flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') send(input);
+            }}
+            placeholder="예: 어제 이유식 뭐 먹었어?"
+            className="flex-1 min-w-0 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+          />
+          <button
+            onClick={isListening ? stopVoiceInput : startVoiceInput}
+            disabled={loading}
+            title={isListening ? '음성 인식 중지' : '음성으로 질문하기'}
+            className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40 ${
+              isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
+            🎤
+          </button>
+          <button
+            onClick={() => send(input)}
+            disabled={loading || !input.trim()}
+            className="shrink-0 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+          >
+            전송
+          </button>
+        </div>
       </div>
     </div>
   );
