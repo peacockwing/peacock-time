@@ -58,6 +58,8 @@ export const summarizeActivity = (activity: Activity, customFields: CustomFieldD
       return '터미타임';
     case 'GROWTH':
       return [d.height_cm ? `${d.height_cm}cm` : null, d.weight_kg ? `${d.weight_kg}kg` : null].filter(Boolean).join(' · ') || '성장';
+    case 'CRY_ANALYSIS':
+      return d.summary || 'AI 울음 분석';
     case 'CUSTOM': {
       const def = customFields.find((c) => c.id === d.definition_id);
       const value = d.value_number ?? d.value_text;

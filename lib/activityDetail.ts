@@ -21,6 +21,7 @@ export const DETAIL_RELATION: Partial<Record<ActivityCategoryCode | 'CUSTOM', { 
   WATER: { relation: 'water', delegate: 'waterDetail' },
   PLAY: { relation: 'play', delegate: 'playDetail' },
   GROWTH: { relation: 'growth', delegate: 'growthDetail' },
+  CRY_ANALYSIS: { relation: 'cryAnalysis', delegate: 'cryAnalysisDetail' },
   CUSTOM: { relation: 'custom', delegate: 'customDetail' },
 };
 

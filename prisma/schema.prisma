@@ -25,6 +25,7 @@ enum ActivityCategory {
   PLAY
   TUMMY_TIME
   GROWTH
+  CRY_ANALYSIS
   CUSTOM
 }
 
@@ -90,6 +91,7 @@ model ActivityLog {
   water         WaterDetail?
   play          PlayDetail?
   growth        GrowthDetail?
+  cryAnalysis   CryAnalysisDetail?
   custom        CustomDetail?
 
   @@index([family_code, category, start_time(sort: Desc)])
@@ -249,6 +251,23 @@ model GrowthDetail {
   source      String      @default("MANUAL")
 
   @@map("growth_detail")
+}
+
+// AI 울음 분석 결과 - system-generated only (never manually entered, so this
+// intentionally is NOT registered in lib/activityCategories.ts's
+// ACTIVITY_CATEGORIES - no quick-add card, no voice command, no editable
+// form fields). needs/features are stored as JSON since their shape is
+// AI-authored, not a fixed set of form inputs like every other category.
+model CryAnalysisDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  emoji       String?
+  summary     String?
+  urgent      Boolean     @default(false)
+  needs       Json
+  features    Json?
+
+  @@map("cry_analysis_detail")
 }
 
 // 17. 커스텀 (custom) - a family defines its own tracked item (name + unit +

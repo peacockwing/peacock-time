@@ -269,7 +269,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
         return;
       }
 
-      const resData = await apiAnalyzeCry({ features, familyCode: familyCode || undefined });
+      const resData = await apiAnalyzeCry({ features, familyCode: familyCode || undefined, actorEmail: userEmail });
       if (resData.success) {
         setCryAnalysisResult({
           emoji: resData.emoji,
@@ -277,6 +277,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
           urgent: resData.urgent,
           needs: resData.needs,
         });
+        if (resData.activity) setActivities((prev) => [resData.activity as Activity, ...prev]);
       } else {
         alert(resData.error || '분석 중 오류가 발생했습니다.');
       }

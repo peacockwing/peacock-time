@@ -21,7 +21,11 @@ export type ActivityCategoryCode =
   | 'WATER'
   | 'PLAY'
   | 'TUMMY_TIME'
-  | 'GROWTH';
+  | 'GROWTH'
+  // System-generated only (AI cry analysis) - deliberately not added to
+  // ACTIVITY_CATEGORIES below, so it gets no quick-add card, voice command,
+  // or manual form; see CryAnalysisDetail in prisma/schema.prisma.
+  | 'CRY_ANALYSIS';
 
 // 'tags' fields are stored as a plain space/comma-separated string while the
 // form is open (same pattern as the hashtag input) and only split into a

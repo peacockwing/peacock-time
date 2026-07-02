@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAnthropic } from '../../../lib/anthropic';
 import { getPrisma } from '../../../lib/prisma';
+import { serializeActivity } from '../../../lib/activityDetail';
 
 const MODEL = 'claude-opus-4-8';
 
@@ -68,18 +69,19 @@ async function getRecentContext(prisma: ReturnType<typeof getPrisma>, familyCode
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { familyCode, features } = body;
+    const { familyCode, actorEmail, features } = body;
 
     if (!features || typeof features !== 'object') {
       return NextResponse.json({ success: false, error: 'features가 필요합니다.' }, { status: 400 });
     }
 
     const anthropic = getAnthropic();
+    const prisma = getPrisma();
 
     let context: Record<string, any> | null = null;
     if (familyCode) {
       try {
-        context = await getRecentContext(getPrisma(), familyCode);
+        context = await getRecentContext(prisma, familyCode);
       } catch (e) {
         context = null;
       }
@@ -109,7 +111,32 @@ export async function POST(request: Request) {
 
     const parsed = JSON.parse(textBlock.text);
 
-    return NextResponse.json({ success: true, ...parsed, features, context });
+    let activity: any = null;
+    if (familyCode) {
+      const now = new Date();
+      const created = await prisma.activityLog.create({
+        data: {
+          family_code: familyCode,
+          category: 'CRY_ANALYSIS',
+          actor_email: actorEmail || null,
+          start_time: now,
+          end_time: now,
+          cryAnalysis: {
+            create: {
+              emoji: parsed.emoji,
+              summary: parsed.summary,
+              urgent: parsed.urgent,
+              needs: parsed.needs,
+              features,
+            },
+          },
+        },
+        include: { cryAnalysis: true },
+      });
+      activity = serializeActivity(created);
+    }
+
+    return NextResponse.json({ success: true, ...parsed, features, context, activity });
   } catch (error: any) {
     console.error('❌ POST /api/cry-analysis Error:', error.message);
     return NextResponse.json({ success: false, error: error.message || '서버 내부 오류' }, { status: 500 });

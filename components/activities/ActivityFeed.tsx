@@ -11,12 +11,16 @@ interface ActivityFeedProps {
   onEdit: (activity: Activity) => void;
   onDelete: (id: number) => void;
   onStop: (activity: Activity) => void;
+  // AI 울음 분석 (CRY_ANALYSIS) entries are system-generated, read-only
+  // results, not user-editable form data - tapping the card opens a detail
+  // view instead of the generic edit form.
+  onViewCry?: (activity: Activity) => void;
 }
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 
-export default function ActivityFeed({ activities, customFields, onEdit, onDelete, onStop }: ActivityFeedProps) {
+export default function ActivityFeed({ activities, customFields, onEdit, onDelete, onStop, onViewCry }: ActivityFeedProps) {
   const groups = React.useMemo(() => {
     const out: Record<string, Activity[]> = {};
     activities.forEach((a) => {
@@ -38,12 +42,17 @@ export default function ActivityFeed({ activities, customFields, onEdit, onDelet
           <div className="text-[11px] font-bold text-slate-400 bg-slate-950/20 px-3 py-1 rounded-full inline-block">{dateKey}</div>
           <div className="space-y-2 pt-1">
             {items.map((item) => {
+              const isCry = item.category === 'CRY_ANALYSIS';
               const def = item.category !== 'CUSTOM' ? getCategoryDef(item.category) : undefined;
-              const emoji = def?.emoji || '📝';
-              const label = def?.label || '커스텀';
+              const emoji = isCry ? item.detail?.emoji || '🎙️' : def?.emoji || '📝';
+              const label = isCry ? 'AI 울음 분석' : def?.label || '커스텀';
               const inProgress = !item.end_time;
               return (
-                <div key={item.id} className="bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl shadow-sm">
+                <div
+                  key={item.id}
+                  onClick={isCry ? () => onViewCry?.(item) : undefined}
+                  className={`bg-slate-800/60 border border-slate-800/80 p-3.5 rounded-2xl shadow-sm ${isCry ? 'cursor-pointer active:scale-98 transition-transform' : ''}`}
+                >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-3 min-w-0">
                       <span className="text-xl bg-slate-950/60 w-10 h-10 rounded-xl flex items-center justify-center border border-slate-800 shrink-0">
@@ -69,10 +78,28 @@ export default function ActivityFeed({ activities, customFields, onEdit, onDelet
                           종료
                         </button>
                       )}
-                      <button className="text-[10px] text-slate-200 bg-slate-700/90 hover:bg-slate-700 rounded-full px-2 py-1 font-bold" onClick={() => onEdit(item)}>
-                        수정 ✎
-                      </button>
-                      <button className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1" onClick={() => onDelete(item.id)}>
+                      {isCry ? (
+                        <button
+                          className="text-[10px] text-slate-200 bg-slate-700/90 hover:bg-slate-700 rounded-full px-2 py-1 font-bold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewCry?.(item);
+                          }}
+                        >
+                          보기 🔍
+                        </button>
+                      ) : (
+                        <button className="text-[10px] text-slate-200 bg-slate-700/90 hover:bg-slate-700 rounded-full px-2 py-1 font-bold" onClick={() => onEdit(item)}>
+                          수정 ✎
+                        </button>
+                      )}
+                      <button
+                        className="text-[10px] text-slate-600 hover:text-rose-400 font-bold px-2 py-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(item.id);
+                        }}
+                      >
                         삭제 ✕
                       </button>
                     </div>

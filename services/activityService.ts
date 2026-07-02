@@ -61,13 +61,14 @@ export interface CryNeed {
   reasoning: string;
 }
 
-export const analyzeCry = async (payload: { features: Record<string, any>; familyCode?: string }) =>
+export const analyzeCry = async (payload: { features: Record<string, any>; familyCode?: string; actorEmail?: string }) =>
   fetchJson(API_PATHS.cryAnalysis, { method: 'POST', body: JSON.stringify(payload) }) as Promise<{
     success: boolean;
     needs: CryNeed[];
     summary: string;
     emoji: string;
     urgent: boolean;
+    activity: Activity | null;
     error?: string;
   }>;
 
