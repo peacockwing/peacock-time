@@ -59,6 +59,8 @@ export default function DashboardView() {
     isVoiceListening,
     startVoiceCommand,
     stopVoiceCommand,
+    isWakeWordActive,
+    toggleWakeWordListening,
     recommendations,
     notificationsEnabled,
     requestNotifications,
@@ -246,7 +248,13 @@ export default function DashboardView() {
             <QuickGrid categorySettings={categorySettings} customFields={customFields} onPick={openQuickForm} />
 
             <div className="pt-1">
-              <VoiceControl isVoiceListening={isVoiceListening} startVoiceCommand={startVoiceCommand} stopVoiceCommand={stopVoiceCommand} />
+              <VoiceControl
+                isVoiceListening={isVoiceListening}
+                startVoiceCommand={startVoiceCommand}
+                stopVoiceCommand={stopVoiceCommand}
+                isWakeWordActive={isWakeWordActive}
+                toggleWakeWordListening={toggleWakeWordListening}
+              />
             </div>
 
             <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-inner">

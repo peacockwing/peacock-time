@@ -15,14 +15,18 @@ import {
   deleteCustomField as apiDeleteCustomField,
   analyzeCry as apiAnalyzeCry,
   fetchRecommendations,
+  interpretVoiceCommand,
 } from '../services/activityService';
-import { parseVoiceCommand } from '../services/voiceParser';
+import { getCategoryDef } from '../lib/activityCategories';
+import { summarizeActivity } from '../lib/activitySummary';
 import { speak } from '../services/tts';
 import type { Activity, CategorySettingEntry, CustomFieldDefinition, Recommendation } from '../types/activity';
 
 const activeActivityChannels = new Set<string>();
 const NOTIFICATION_PREF_KEY = 'peacock_notifications_enabled';
 const NOTIFIED_KEY = 'peacock_notified_predictions';
+const WAKE_WORD_PREF_KEY = 'peacock_wake_word_enabled';
+const WAKE_WORD_REGEX = /피\s*콕\s*타\s*임/;
 
 export const useActivities = (familyCode: string | null, userEmail: string) => {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -280,42 +284,59 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     }
   };
 
-  // ---- Voice command: quick one-shot entries for a few common categories ----
+  // ---- Voice command: all 16 categories, powered by the /api/voice-command
+  // NLU engine (classify category -> extract that category's actual fields,
+  // both via Claude) so any category the app knows about is voice-loggable
+  // without hand-written per-category parsing rules.
   const recognitionRef = useRef<any | null>(null);
   const [isVoiceListening, setIsVoiceListening] = useState(false);
 
-  const handleVoiceTranscript = async (text: string) => {
-    const cmd = parseVoiceCommand(text || '');
-    if (!cmd) {
-      speak('음성 명령을 이해하지 못했습니다. 다시 말해주세요.');
+  const processVoiceCommand = async (text: string) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+
+    let parsed;
+    try {
+      parsed = await interpretVoiceCommand(trimmed);
+    } catch (e) {
+      speak('음성 명령 처리 중 오류가 발생했어요');
+      return;
+    }
+    if (!parsed.success || !parsed.category) {
+      speak(parsed.error || '어떤 항목을 기록할지 이해하지 못했어요. 다시 말씀해주세요.');
       return;
     }
 
-    const now = new Date().toISOString();
     try {
-      if (cmd.type === 'FEED') {
-        await createActivity({ category: 'FORMULA', startTime: now, endTime: now, detail: { final_amount_ml: cmd.amountMl } });
-        speak(`${cmd.amountMl} 밀리리터 분유 기록을 추가했습니다`);
-        return;
-      }
-      if (cmd.type === 'TEMP') {
-        await createActivity({ category: 'TEMPERATURE', startTime: now, endTime: now, detail: { temperature_celsius: cmd.value } });
-        speak(`${cmd.value} 도 체온 기록을 추가했습니다`);
-        return;
-      }
-      if (cmd.type === 'POOP') {
-        await createActivity({ category: 'DIAPER', startTime: now, endTime: now, detail: { type: 'POOP' } });
-        speak('배변 기록을 추가했습니다');
-        return;
-      }
-      if (cmd.type === 'SLEEP_TOGGLE') {
+      // SLEEP is stateful elsewhere in the app (in-progress timer, dashboard
+      // toggle) - route a plain "잤어/깼어"-style command through the same
+      // toggle instead of creating a parallel entry, unless a duration was
+      // spoken (then it's a retroactive nap log, handled generically below).
+      if (parsed.category === 'SLEEP' && !parsed.durationMinutes) {
+        const wasSleeping = isSleeping;
         await handleToggleSleep();
-        speak(cmd.state === 'SLEEP' ? '수면 시작 기록을 추가했습니다' : '깨어남 기록을 추가했습니다');
+        speak(wasSleeping ? '깨어남 기록을 저장했어요' : '수면 시작 기록을 저장했어요');
         return;
       }
+
+      const res = await createActivity({
+        category: parsed.category,
+        startTime: parsed.startTime as string,
+        endTime: parsed.endTime ?? null,
+        detail: parsed.detail,
+      });
+
+      if (!res.success || !('activity' in res) || !res.activity) {
+        speak('저장 중 오류가 발생했어요');
+        return;
+      }
+
+      const def = getCategoryDef(parsed.category);
+      const summary = summarizeActivity(res.activity, customFields);
+      speak(`${def?.label || ''} ${summary} 기록을 저장했어요`);
     } catch (e) {
       console.error('voice command failed', e);
-      speak('기록 중 오류가 발생했습니다');
+      speak('기록 중 오류가 발생했어요');
     }
   };
 
@@ -326,6 +347,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
       return;
     }
     if (recognitionRef.current) return;
+    stopWakeWordRecognizer();
 
     const rec = new SpeechRecognition();
     rec.lang = 'ko-KR';
@@ -336,6 +358,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     rec.onerror = () => {
       setIsVoiceListening(false);
       recognitionRef.current = null;
+      if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
     };
     rec.onend = () => {
       setIsVoiceListening(false);
@@ -343,7 +366,9 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     };
     rec.onresult = (ev: any) => {
       const transcript = Array.from(ev.results).map((r: any) => r[0].transcript).join('');
-      handleVoiceTranscript(transcript);
+      processVoiceCommand(transcript).finally(() => {
+        if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
+      });
     };
 
     recognitionRef.current = rec;
@@ -367,6 +392,135 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     }
     setIsVoiceListening(false);
   };
+
+  // ---- Wake word ("피콕타임"): continuous background listening so a
+  // command can be spoken hands-free, Siri/OK Google-style. This only works
+  // while this browser tab is open and in the foreground - mobile OSes
+  // suspend page mic access once the screen locks or the tab is backgrounded,
+  // so it's not a true always-on background assistant.
+  const wakeWordRecognitionRef = useRef<any | null>(null);
+  const wakeWordShouldRunRef = useRef(false);
+  const [isWakeWordActive, setIsWakeWordActive] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsWakeWordActive(localStorage.getItem(WAKE_WORD_PREF_KEY) === 'true');
+  }, []);
+
+  const stopWakeWordRecognizer = () => {
+    const rec = wakeWordRecognitionRef.current;
+    if (rec) {
+      rec.onend = null;
+      rec.onerror = null;
+      rec.onresult = null;
+      try {
+        rec.stop();
+      } catch (e) {
+        /* ignore */
+      }
+      wakeWordRecognitionRef.current = null;
+    }
+  };
+
+  const captureFollowUpCommand = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const rec = new SpeechRecognition();
+    rec.lang = 'ko-KR';
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onresult = (ev: any) => {
+      const transcript = Array.from(ev.results).map((r: any) => r[0].transcript).join('');
+      processVoiceCommand(transcript).finally(() => {
+        if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
+      });
+    };
+    rec.onerror = () => {
+      if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
+    };
+    wakeWordRecognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
+    }
+  };
+
+  const launchWakeWordRecognizer = () => {
+    if (!wakeWordShouldRunRef.current || recognitionRef.current) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const rec = new SpeechRecognition();
+    rec.lang = 'ko-KR';
+    rec.interimResults = false;
+    rec.continuous = true;
+
+    rec.onresult = (ev: any) => {
+      const result = ev.results[ev.resultIndex];
+      if (!result || !result.isFinal) return;
+      const transcript: string = result[0].transcript || '';
+      const match = transcript.match(WAKE_WORD_REGEX);
+      if (!match) return;
+
+      const afterWake = transcript.slice((match.index || 0) + match[0].length).trim();
+      stopWakeWordRecognizer();
+      if (afterWake) {
+        processVoiceCommand(afterWake).finally(() => {
+          if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
+        });
+      } else {
+        speak('네, 말씀하세요');
+        captureFollowUpCommand();
+      }
+    };
+    rec.onerror = () => {
+      wakeWordRecognitionRef.current = null;
+      if (wakeWordShouldRunRef.current) setTimeout(launchWakeWordRecognizer, 500);
+    };
+    rec.onend = () => {
+      wakeWordRecognitionRef.current = null;
+      if (wakeWordShouldRunRef.current) setTimeout(launchWakeWordRecognizer, 300);
+    };
+
+    wakeWordRecognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      wakeWordRecognitionRef.current = null;
+    }
+  };
+
+  const startWakeWordListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
+      return;
+    }
+    wakeWordShouldRunRef.current = true;
+    localStorage.setItem(WAKE_WORD_PREF_KEY, 'true');
+    setIsWakeWordActive(true);
+    launchWakeWordRecognizer();
+  };
+
+  const stopWakeWordListening = () => {
+    wakeWordShouldRunRef.current = false;
+    localStorage.setItem(WAKE_WORD_PREF_KEY, 'false');
+    setIsWakeWordActive(false);
+    stopWakeWordRecognizer();
+  };
+
+  const toggleWakeWordListening = () => {
+    if (isWakeWordActive) stopWakeWordListening();
+    else startWakeWordListening();
+  };
+
+  useEffect(() => {
+    return () => {
+      wakeWordShouldRunRef.current = false;
+      stopWakeWordRecognizer();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---- Notifications: fire a local browser notification once a prediction's
   // ETA arrives. Only works while this tab is open (no service worker / push
@@ -455,6 +609,8 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     isVoiceListening,
     startVoiceCommand,
     stopVoiceCommand,
+    isWakeWordActive,
+    toggleWakeWordListening,
     recommendations,
     notificationsEnabled,
     requestNotifications,

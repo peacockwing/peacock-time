@@ -8,6 +8,7 @@ export const API_PATHS = {
   recommendations: '/api/recommendations',
   assistant: '/api/assistant',
   assistantConversations: '/api/assistant/conversations',
+  voiceCommand: '/api/voice-command',
 };
 
 export const fetchJson = async (url: string, options?: RequestInit) => {

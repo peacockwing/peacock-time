@@ -62,3 +62,15 @@ export const fetchRecommendations = async (familyCode: string) => {
   const res = await fetch(`${API_PATHS.recommendations}?familyCode=${encodeURIComponent(familyCode)}`, { cache: 'no-store' });
   return res.json() as Promise<{ success: boolean; recommendations: Recommendation[] }>;
 };
+
+export const interpretVoiceCommand = async (transcript: string) =>
+  fetchJson(API_PATHS.voiceCommand, { method: 'POST', body: JSON.stringify({ transcript }) }) as Promise<{
+    success: boolean;
+    category?: string;
+    confidence?: 'high' | 'medium' | 'low';
+    detail?: Record<string, any>;
+    startTime?: string;
+    endTime?: string | null;
+    durationMinutes?: number | null;
+    error?: string;
+  }>;
