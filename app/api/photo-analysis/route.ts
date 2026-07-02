@@ -63,17 +63,22 @@ const SCHEMAS: Record<string, { prompt: string; schema: Record<string, unknown> 
   },
   BABY_FOOD: {
     prompt:
-      'This photo shows baby food or the ingredients being prepared for it. Identify the type of baby food (main ingredient or dish name). If not identifiable, return null rather than guessing.',
+      'This photo shows baby food or the ingredients being prepared for it. Identify each individual ingredient visible (e.g. carrot, broccoli, beef) as a separate item in Korean, and if there is an overall dish name/type, include that too (e.g. "소고기 야채죽"). This is used for allergy tracking, so list ingredients individually rather than lumping them into one phrase. If nothing is identifiable, return an empty ingredients list and null food_type rather than guessing.',
     schema: {
       type: 'object',
       properties: {
+        ingredients: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Individual ingredients visible in the photo, in Korean, e.g. ["당근", "브로콜리", "소고기"]. Empty array if none identifiable.',
+        },
         food_type: {
           type: ['string', 'null'],
-          description: 'The type/name of the baby food or its main ingredient, or null if not identifiable',
+          description: 'Overall dish name/type if apparent (e.g. "소고기 야채죽"), or null if not identifiable',
         },
         confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       },
-      required: ['food_type', 'confidence'],
+      required: ['ingredients', 'food_type', 'confidence'],
       additionalProperties: false,
     },
   },

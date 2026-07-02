@@ -289,6 +289,15 @@ export default function ActivityForm({ category, customFields, existingActivity,
                 />
               )}
 
+              {f.type === 'tags' && (
+                <input
+                  value={Array.isArray(fields[f.key]) ? fields[f.key].join(' ') : fields[f.key] ?? ''}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+                />
+              )}
+
               {f.type === 'textarea' && (
                 <textarea
                   value={fields[f.key] ?? ''}

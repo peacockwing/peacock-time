@@ -28,8 +28,10 @@ export const summarizeActivity = (activity: Activity, customFields: CustomFieldD
       if (typeof d.final_amount_ml === 'number') return `${d.final_amount_ml}ml${d.target_amount_ml ? ` (목표 ${d.target_amount_ml}ml)` : ''}`;
       return d.formula_type || (activity.category === 'FORMULA' ? '분유' : '유축수유');
     }
-    case 'BABY_FOOD':
-      return [d.food_type, d.amount_fed].filter(Boolean).join(' · ') || '이유식';
+    case 'BABY_FOOD': {
+      const ingredients = Array.isArray(d.ingredients) && d.ingredients.length ? d.ingredients.join(', ') : null;
+      return [d.food_type, ingredients, d.amount_fed].filter(Boolean).join(' · ') || '이유식';
+    }
     case 'DIAPER':
       return [DIAPER_LABEL[d.type], d.weight_g ? `${d.weight_g}g` : null].filter(Boolean).join(' · ') || '기저귀';
     case 'SLEEP':

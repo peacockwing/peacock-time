@@ -67,7 +67,18 @@ export const validateFieldsForCategory = (category: string, detail: Record<strin
   const out: Record<string, any> = {};
   for (const [key, value] of Object.entries(detail)) {
     if (!fieldTypes.has(key) || value === undefined || value === '' || value === null) continue;
-    out[key] = fieldTypes.get(key) === 'number' ? Number(value) : value;
+    const type = fieldTypes.get(key);
+    if (type === 'number') {
+      out[key] = Number(value);
+    } else if (type === 'tags') {
+      // Accepts either a real array (photo analysis) or a space/comma
+      // separated string (the form's text input) and normalizes to string[].
+      const arr = Array.isArray(value) ? value : String(value).split(/[\s,]+/);
+      const cleaned = arr.map((v) => String(v).trim()).filter(Boolean);
+      if (cleaned.length > 0) out[key] = cleaned;
+    } else {
+      out[key] = value;
+    }
   }
   return out;
 };

@@ -128,6 +128,7 @@ model BabyFoodDetail {
   activity_id BigInt      @id
   activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
   food_type   String?
+  ingredients String[]    @default([])
   amount_fed  String?
 
   @@map("baby_food_detail")

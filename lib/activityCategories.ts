@@ -22,7 +22,10 @@ export type ActivityCategoryCode =
   | 'PLAY'
   | 'TUMMY_TIME';
 
-export type FieldType = 'select' | 'number' | 'text' | 'textarea';
+// 'tags' fields are stored as a plain space/comma-separated string while the
+// form is open (same pattern as the hashtag input) and only split into a
+// string[] at submit time - see ActivityForm.tsx.
+export type FieldType = 'select' | 'number' | 'text' | 'textarea' | 'tags';
 
 export interface FieldOption {
   value: string;
@@ -93,6 +96,7 @@ export const ACTIVITY_CATEGORIES: CategoryDef[] = [
     emoji: '🥣',
     fields: [
       { key: 'food_type', label: '이유식 종류', type: 'text' },
+      { key: 'ingredients', label: '재료', type: 'tags', placeholder: '예: 당근 브로콜리 소고기' },
       { key: 'amount_fed', label: '먹인량', type: 'text', placeholder: '예: 많이/보통/조금, 100g' },
     ],
   },
