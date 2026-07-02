@@ -7,21 +7,276 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BabyLog {
-  id                BigInt    @id @default(autoincrement())
-  family_code       String
-  category_code     String
-  category_name_han String
-  event_value       String
-  event_date        String
-  event_time        String
-  display_emoji     String?
-  actor_email       String?
-  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+enum ActivityCategory {
+  BREASTFEEDING
+  FORMULA
+  BABY_FOOD
+  DIAPER
+  SLEEP
+  PUMPING
+  PUMPED_MILK_FEEDING
+  BATH
+  HOSPITAL
+  TEMPERATURE
+  MEDICATION
+  SNACK
+  MILK
+  WATER
+  PLAY
+  TUMMY_TIME
+  CUSTOM
+}
 
-  @@index([event_date(sort: Desc), event_time(sort: Desc)], map: "baby_log_event_datetime_idx")
-  @@index([family_code])
-  @@map("baby_log")
+enum FeedingSide {
+  UNKNOWN
+  LEFT
+  RIGHT
+  BOTH
+  LEFT_TO_RIGHT
+  RIGHT_TO_LEFT
+}
+
+enum DiaperType {
+  PEE
+  POOP
+  BOTH
+}
+
+enum SleepType {
+  NAP
+  NIGHT
+}
+
+enum HospitalVisitType {
+  CHECKUP
+  ILLNESS
+}
+
+enum CustomValueType {
+  TEXT
+  NUMBER
+}
+
+// One row per logged activity, regardless of category. Category-specific
+// fields live in the *Detail models below (1:1), so each detail table only
+// carries the columns that category actually needs.
+model ActivityLog {
+  id          BigInt           @id @default(autoincrement())
+  family_code String
+  category    ActivityCategory
+  actor_email String?
+  start_time  DateTime
+  // Null while the activity is still in progress (e.g. breastfeeding not yet stopped).
+  end_time    DateTime?
+  // Reserved for future photo-based auto-entry (not populated by any logic yet).
+  photo_url   String?
+  memo        String?
+  hashtags    String[]         @default([])
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+
+  breastfeeding BreastfeedingDetail?
+  bottleFeeding BottleFeedingDetail?
+  babyFood      BabyFoodDetail?
+  diaper        DiaperDetail?
+  sleep         SleepDetail?
+  pumping       PumpingDetail?
+  hospital      HospitalDetail?
+  temperature   TemperatureDetail?
+  medication    MedicationDetail?
+  snack         SnackDetail?
+  milk          MilkDetail?
+  water         WaterDetail?
+  play          PlayDetail?
+  custom        CustomDetail?
+
+  @@index([family_code, category, start_time(sort: Desc)])
+  @@map("activity_log")
+}
+
+// 1. 모유 (breastfeeding)
+model BreastfeedingDetail {
+  activity_id         BigInt      @id
+  activity            ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  side                FeedingSide @default(UNKNOWN)
+  left_duration_sec   Int?
+  right_duration_sec  Int?
+  left_alarm_minutes  Int?
+  right_alarm_minutes Int?
+
+  @@map("breastfeeding_detail")
+}
+
+// 2. 분유 (formula) and 7. 유축수유 (pumped milk feeding) share this shape -
+// both are "bottle feeding" with an optional target amount reconciled by
+// leftover/extra into a final amount. `formula_type` is only meaningful for
+// FORMULA entries and stays null for PUMPED_MILK_FEEDING.
+model BottleFeedingDetail {
+  activity_id      BigInt      @id
+  activity         ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  formula_type     String?
+  target_amount_ml Int?
+  leftover_ml      Int?
+  extra_ml         Int?
+  final_amount_ml  Int?
+
+  @@map("bottle_feeding_detail")
+}
+
+// 3. 이유식 (baby food)
+model BabyFoodDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  food_type   String?
+  amount_fed  String?
+
+  @@map("baby_food_detail")
+}
+
+// 4. 기저귀 (diaper)
+model DiaperDetail {
+  activity_id     BigInt      @id
+  activity        ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  type            DiaperType
+  stool_photo_url String?
+  stool_state     String?
+  weight_g        Int?
+
+  @@map("diaper_detail")
+}
+
+// 5. 수면 (sleep)
+model SleepDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  sleep_type  SleepType
+
+  @@map("sleep_detail")
+}
+
+// 6. 유축 (pumping)
+model PumpingDetail {
+  activity_id     BigInt      @id
+  activity        ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  side            FeedingSide @default(UNKNOWN)
+  left_amount_ml  Int?
+  right_amount_ml Int?
+  total_amount_ml Int?
+
+  @@map("pumping_detail")
+}
+
+// 9. 병원 (hospital)
+model HospitalDetail {
+  activity_id   BigInt            @id
+  activity      ActivityLog       @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  visit_type    HospitalVisitType
+  hospital_name String?
+  doctor_name   String?
+  content       String?
+
+  @@map("hospital_detail")
+}
+
+// 10. 체온 (temperature)
+model TemperatureDetail {
+  activity_id         BigInt      @id
+  activity            ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  temperature_celsius Float
+
+  @@map("temperature_detail")
+}
+
+// 11. 투약 (medication)
+model MedicationDetail {
+  activity_id     BigInt      @id
+  activity        ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  medication_name String?
+
+  @@map("medication_detail")
+}
+
+// 12. 간식 (snack)
+model SnackDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  snack_type  String?
+  amount_fed  String?
+  calories    Int?
+
+  @@map("snack_detail")
+}
+
+// 13. 우유 (milk)
+model MilkDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  milk_type   String?
+  amount_ml   Int?
+
+  @@map("milk_detail")
+}
+
+// 14. 물 (water)
+model WaterDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  amount_ml   Int?
+
+  @@map("water_detail")
+}
+
+// 15. 놀이 (play)
+model PlayDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  play_type   String?
+
+  @@map("play_detail")
+}
+
+// 17. 커스텀 (custom) - a family defines its own tracked item (name + unit +
+// value type) once in CustomFieldDefinition, then each ActivityLog entry of
+// category CUSTOM points at one definition and carries its own value.
+model CustomFieldDefinition {
+  id            BigInt          @id @default(autoincrement())
+  family_code   String
+  name          String
+  unit          String?
+  value_type    CustomValueType @default(TEXT)
+  is_enabled    Boolean         @default(true)
+  display_order Int             @default(0)
+  created_at    DateTime        @default(now())
+
+  entries CustomDetail[]
+
+  @@unique([family_code, name])
+  @@map("custom_field_definition")
+}
+
+model CustomDetail {
+  activity_id   BigInt                @id
+  activity      ActivityLog           @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  definition_id BigInt
+  definition    CustomFieldDefinition @relation(fields: [definition_id], references: [id])
+  value_text    String?
+  value_number  Float?
+
+  @@map("custom_detail")
+}
+
+// 18. 세팅 - per-family enable/disable + display order for the 16 fixed
+// categories (BATH and TUMMY_TIME included; CUSTOM is excluded here since
+// each custom definition carries its own is_enabled/display_order above).
+model CategorySetting {
+  id            BigInt           @id @default(autoincrement())
+  family_code   String
+  category      ActivityCategory
+  is_enabled    Boolean          @default(true)
+  display_order Int              @default(0)
+
+  @@unique([family_code, category])
+  @@map("category_setting")
 }
 
 model Checklist {

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       familyCode: familyCode || null,
     });
   } catch (error: any) {
-    console.error('❌ POST /api/baby-log/analyze-cry Error:', error.message);
+    console.error('❌ POST /api/cry-analysis Error:', error.message);
     return NextResponse.json({ success: false, error: error.message || '서버 내부 오류' }, { status: 500 });
   }
 }

@@ -1,15 +1,3 @@
-export interface BabyLog {
-  id: number;
-  family_code: string;
-  category_code: string;
-  category_name_han: string;
-  event_value: string;
-  event_date: string;
-  event_time: string;
-  display_emoji: string;
-  actor_email: string;
-}
-
 export interface ChecklistItem {
   id: number;
   family_code: string;

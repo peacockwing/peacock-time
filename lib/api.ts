@@ -1,8 +1,10 @@
 export const API_PATHS = {
   auth: '/api/auth',
-  babyLog: '/api/baby-log',
+  activities: '/api/activities',
   tabs: '/api/tabs',
-  babyLogAnalyzeCry: '/api/baby-log/analyze-cry',
+  cryAnalysis: '/api/cry-analysis',
+  customFields: '/api/custom-fields',
+  categorySettings: '/api/settings/categories',
 };
 
 export const fetchJson = async (url: string, options?: RequestInit) => {

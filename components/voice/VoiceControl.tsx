@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
-import { useDashboard } from '../../hooks/useDashboard';
 
-export default function VoiceControl() {
-  const { startVoiceCommand, stopVoiceCommand, isVoiceListening } = useDashboard();
+interface VoiceControlProps {
+  isVoiceListening: boolean;
+  startVoiceCommand: () => void;
+  stopVoiceCommand: () => void;
+}
 
+export default function VoiceControl({ isVoiceListening, startVoiceCommand, stopVoiceCommand }: VoiceControlProps) {
   return (
     <div className="flex items-center space-x-2">
       <button

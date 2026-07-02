@@ -46,3 +46,4 @@ desktop.ini
 # 자바/그레이들/빌드 아티팩트 (중첩 빌드 디렉터리 포함)
 **/build/
 .gradle/
+.vercel
