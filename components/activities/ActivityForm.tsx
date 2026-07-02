@@ -3,6 +3,7 @@
 import React from 'react';
 import { getCategoryDef, type ActivityCategoryCode } from '../../lib/activityCategories';
 import { resizeImageForUpload } from '../../lib/imageResize';
+import { isNativeApp, takePhotoNative } from '../../services/nativeCamera';
 import type { Activity, CustomFieldDefinition } from '../../types/activity';
 
 // Formats a Date for an <input type="datetime-local"> value in local time.
@@ -63,6 +64,26 @@ export default function ActivityForm({ category, customFields, existingActivity,
 
   const setField = (key: string, value: any) => setFields((prev) => ({ ...prev, [key]: value }));
 
+  const runPhotoAnalysis = async (data: string, mediaType: string) => {
+    const res = await fetch('/api/photo-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, imageBase64: data, mediaType }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || '사진 분석에 실패했습니다.');
+
+    const result = json.result as Record<string, any>;
+    setFields((prev) => {
+      const next = { ...prev };
+      for (const [key, value] of Object.entries(result)) {
+        if (key === 'confidence' || value === null || value === undefined) continue;
+        next[key] = value;
+      }
+      return next;
+    });
+  };
+
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -72,25 +93,29 @@ export default function ActivityForm({ category, customFields, existingActivity,
     setError(null);
     try {
       const { data, mediaType } = await resizeImageForUpload(file);
-      const res = await fetch('/api/photo-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, imageBase64: data, mediaType }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || '사진 분석에 실패했습니다.');
-
-      const result = json.result as Record<string, any>;
-      setFields((prev) => {
-        const next = { ...prev };
-        for (const [key, value] of Object.entries(result)) {
-          if (key === 'confidence' || value === null || value === undefined) continue;
-          next[key] = value;
-        }
-        return next;
-      });
+      await runPhotoAnalysis(data, mediaType);
     } catch (err: any) {
       setError(err.message || '사진 분석 중 오류가 발생했습니다.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Native app: the in-app camera plugin (respects the mic+camera
+  // permissions primed at launch) instead of handing off to <input
+  // type=file capture>, which in a WebView shell opens a separate external
+  // camera app each time.
+  const handleNativePhotoCapture = async () => {
+    if (category === 'CUSTOM') return;
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const photo = await takePhotoNative();
+      if (!photo) return;
+      await runPhotoAnalysis(photo.data, photo.mediaType);
+    } catch (err: any) {
+      const message = String(err?.message || '');
+      if (!/cancel/i.test(message)) setError(message || '사진 분석 중 오류가 발생했습니다.');
     } finally {
       setAnalyzing(false);
     }
@@ -145,13 +170,24 @@ export default function ActivityForm({ category, customFields, existingActivity,
           </button>
         </div>
 
-        {PHOTO_ANALYSIS_CATEGORIES.has(category) && (
-          <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-950/20 py-3 text-xs font-bold text-indigo-300 active:scale-98 transition-transform cursor-pointer">
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} disabled={analyzing} />
-            <span>{analyzing ? '⏳' : '📷'}</span>
-            <span>{analyzing ? '사진 분석 중…' : '사진으로 자동입력'}</span>
-          </label>
-        )}
+        {PHOTO_ANALYSIS_CATEGORIES.has(category) &&
+          (isNativeApp() ? (
+            <button
+              type="button"
+              onClick={handleNativePhotoCapture}
+              disabled={analyzing}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-950/20 py-3 text-xs font-bold text-indigo-300 active:scale-98 transition-transform disabled:opacity-60"
+            >
+              <span>{analyzing ? '⏳' : '📷'}</span>
+              <span>{analyzing ? '사진 분석 중…' : '사진으로 자동입력'}</span>
+            </button>
+          ) : (
+            <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-950/20 py-3 text-xs font-bold text-indigo-300 active:scale-98 transition-transform cursor-pointer">
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} disabled={analyzing} />
+              <span>{analyzing ? '⏳' : '📷'}</span>
+              <span>{analyzing ? '사진 분석 중…' : '사진으로 자동입력'}</span>
+            </label>
+          ))}
 
         {category === 'CUSTOM' && (
           <div className="space-y-1.5">

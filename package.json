@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/camera": "^7.0.5",
     "@prisma/client": "^5.16.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.12.0",

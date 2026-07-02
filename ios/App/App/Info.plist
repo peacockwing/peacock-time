@@ -45,5 +45,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>"피콕타임"이라고 부르면 음성으로 아기 활동을 기록할 수 있어요.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>음성 명령을 텍스트로 변환해서 아기 활동을 자동으로 기록하는 데 사용해요.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>이유식, 기저귀 등 사진을 찍으면 AI가 내용을 자동으로 분석해서 입력해줘요.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>갤러리에서 사진을 선택해 AI 자동 분석에 사용할 수 있어요.</string>
 </dict>
 </plist>

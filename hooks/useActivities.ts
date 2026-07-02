@@ -20,6 +20,8 @@ import {
 import { getCategoryDef } from '../lib/activityCategories';
 import { summarizeActivity } from '../lib/activitySummary';
 import { speak } from '../services/tts';
+import { isNativeApp, ensureVoicePermission, listenOnceNative, stopNativeListening } from '../services/nativeVoice';
+import { primeNativePermissionsOnce } from '../services/nativePermissions';
 import type { Activity, CategorySettingEntry, CustomFieldDefinition, Recommendation } from '../types/activity';
 
 const activeActivityChannels = new Set<string>();
@@ -287,9 +289,11 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
   // ---- Voice command: all 16 categories, powered by the /api/voice-command
   // NLU engine (classify category -> extract that category's actual fields,
   // both via Claude) so any category the app knows about is voice-loggable
-  // without hand-written per-category parsing rules.
-  const recognitionRef = useRef<any | null>(null);
-  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  // without hand-written per-category parsing rules. Triggered only via the
+  // "피콕타임" wake word below - there's no manual tap-to-talk button.
+  useEffect(() => {
+    primeNativePermissionsOnce();
+  }, []);
 
   const processVoiceCommand = async (text: string) => {
     const trimmed = (text || '').trim();
@@ -340,66 +344,20 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     }
   };
 
-  const startVoiceCommand = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
-      return;
-    }
-    if (recognitionRef.current) return;
-    stopWakeWordRecognizer();
-
-    const rec = new SpeechRecognition();
-    rec.lang = 'ko-KR';
-    rec.interimResults = false;
-    rec.continuous = false;
-
-    rec.onstart = () => setIsVoiceListening(true);
-    rec.onerror = () => {
-      setIsVoiceListening(false);
-      recognitionRef.current = null;
-      if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
-    };
-    rec.onend = () => {
-      setIsVoiceListening(false);
-      recognitionRef.current = null;
-    };
-    rec.onresult = (ev: any) => {
-      const transcript = Array.from(ev.results).map((r: any) => r[0].transcript).join('');
-      processVoiceCommand(transcript).finally(() => {
-        if (wakeWordShouldRunRef.current) launchWakeWordRecognizer();
-      });
-    };
-
-    recognitionRef.current = rec;
-    try {
-      rec.start();
-    } catch (e) {
-      setIsVoiceListening(false);
-      recognitionRef.current = null;
-    }
-  };
-
-  const stopVoiceCommand = () => {
-    const rec = recognitionRef.current;
-    if (rec) {
-      try {
-        rec.stop();
-      } catch (e) {
-        /* ignore */
-      }
-      recognitionRef.current = null;
-    }
-    setIsVoiceListening(false);
-  };
-
   // ---- Wake word ("피콕타임"): continuous background listening so a
   // command can be spoken hands-free, Siri/OK Google-style. This only works
-  // while this browser tab is open and in the foreground - mobile OSes
-  // suspend page mic access once the screen locks or the tab is backgrounded,
-  // so it's not a true always-on background assistant.
+  // while the app is open and in the foreground - mobile OSes suspend mic
+  // access once the screen locks or the app is backgrounded, so it's not a
+  // true always-on background assistant.
+  //
+  // Two engines depending on where this runs: the native Capacitor app uses
+  // the @capacitor-community/speech-recognition plugin (Android's WebView
+  // never implemented the Web Speech API, so window.SpeechRecognition is
+  // unusable there even when it's defined); a plain browser tab (e.g.
+  // visiting the Vercel URL directly) uses the Web Speech API as before.
   const wakeWordRecognitionRef = useRef<any | null>(null);
   const wakeWordShouldRunRef = useRef(false);
+  const nativeWakeLoopActiveRef = useRef(false);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
 
   useEffect(() => {
@@ -407,6 +365,32 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     setIsWakeWordActive(localStorage.getItem(WAKE_WORD_PREF_KEY) === 'true');
   }, []);
 
+  // ---- native engine ----
+  const runNativeWakeLoop = async () => {
+    if (nativeWakeLoopActiveRef.current) return;
+    nativeWakeLoopActiveRef.current = true;
+    try {
+      while (wakeWordShouldRunRef.current) {
+        const transcript = await listenOnceNative();
+        if (!wakeWordShouldRunRef.current) break;
+        const match = transcript.match(WAKE_WORD_REGEX);
+        if (!match) continue;
+
+        const afterWake = transcript.slice((match.index || 0) + match[0].length).trim();
+        if (afterWake) {
+          await processVoiceCommand(afterWake);
+        } else {
+          speak('네, 말씀하세요');
+          const command = await listenOnceNative();
+          if (command.trim()) await processVoiceCommand(command);
+        }
+      }
+    } finally {
+      nativeWakeLoopActiveRef.current = false;
+    }
+  };
+
+  // ---- web engine ----
   const stopWakeWordRecognizer = () => {
     const rec = wakeWordRecognitionRef.current;
     if (rec) {
@@ -446,7 +430,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
   };
 
   const launchWakeWordRecognizer = () => {
-    if (!wakeWordShouldRunRef.current || recognitionRef.current) return;
+    if (!wakeWordShouldRunRef.current) return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
@@ -490,7 +474,20 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     }
   };
 
-  const startWakeWordListening = () => {
+  const startWakeWordListening = async () => {
+    if (isNativeApp()) {
+      const granted = await ensureVoicePermission();
+      if (!granted) {
+        alert('마이크 권한이 필요해요. 설정에서 피콕타임의 마이크 접근을 허용해주세요.');
+        return;
+      }
+      wakeWordShouldRunRef.current = true;
+      localStorage.setItem(WAKE_WORD_PREF_KEY, 'true');
+      setIsWakeWordActive(true);
+      runNativeWakeLoop();
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
@@ -506,7 +503,8 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     wakeWordShouldRunRef.current = false;
     localStorage.setItem(WAKE_WORD_PREF_KEY, 'false');
     setIsWakeWordActive(false);
-    stopWakeWordRecognizer();
+    if (isNativeApp()) stopNativeListening();
+    else stopWakeWordRecognizer();
   };
 
   const toggleWakeWordListening = () => {
@@ -517,7 +515,8 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
   useEffect(() => {
     return () => {
       wakeWordShouldRunRef.current = false;
-      stopWakeWordRecognizer();
+      if (isNativeApp()) stopNativeListening();
+      else stopWakeWordRecognizer();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -606,9 +605,6 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     recordingStatusText,
     cryAnalysisResult,
     startCryAnalysis,
-    isVoiceListening,
-    startVoiceCommand,
-    stopVoiceCommand,
     isWakeWordActive,
     toggleWakeWordListening,
     recommendations,
