@@ -46,6 +46,11 @@ export const useDashboard = () => {
     fetchOtherTabs(code, 'inventory', setInventory);
   }, [router]);
 
+  const refreshTabs = async () => {
+    if (!familyCode) return;
+    await Promise.all([fetchOtherTabs(familyCode, 'checklist', setChecklist), fetchOtherTabs(familyCode, 'inventory', setInventory)]);
+  };
+
   useEffect(() => {
     if (!familyCode || familyCode === 'undefined' || familyCode === 'null') return;
     if (activeFamilyChannels.has(familyCode)) return;
@@ -165,5 +170,6 @@ export const useDashboard = () => {
     handleChecklistToggle,
     handleInventoryStatus,
     handleLogout,
+    refreshTabs,
   };
 };

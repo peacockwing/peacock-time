@@ -67,6 +67,19 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     loadRecommendations(familyCode);
   }, [familyCode, loadActivities, loadCategorySettings, loadCustomFields, loadRecommendations]);
 
+  // Manual re-sync (pull-to-refresh) - realtime already keeps activities
+  // current, but this covers gaps like a dropped websocket or a stale
+  // recommendation window without asking the user to reload the page.
+  const refreshAll = useCallback(async () => {
+    if (!familyCode) return;
+    await Promise.all([
+      loadActivities(familyCode),
+      loadCategorySettings(familyCode),
+      loadCustomFields(familyCode),
+      loadRecommendations(familyCode),
+    ]);
+  }, [familyCode, loadActivities, loadCategorySettings, loadCustomFields, loadRecommendations]);
+
   // Predictions shift every time a new log lands, so recompute whenever the
   // activity list changes (debounced - creates/updates/deletes can arrive in
   // quick bursts, e.g. from realtime + the local optimistic update both firing).
@@ -590,6 +603,7 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     loading,
     categorySettings,
     customFields,
+    refreshAll,
     createActivity,
     updateActivity,
     deleteActivity,

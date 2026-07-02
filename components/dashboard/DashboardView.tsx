@@ -12,6 +12,7 @@ import ActivityFeed from '../activities/ActivityFeed';
 import CategorySettingsView from '../activities/CategorySettingsView';
 import RecommendationBar from '../activities/RecommendationBar';
 import AssistantChat from '../assistant/AssistantChat';
+import PullToRefresh from '../common/PullToRefresh';
 import dynamic from 'next/dynamic';
 
 // recharts adds ~100kB to the bundle - only fetch it when the growth tab is
@@ -43,12 +44,14 @@ export default function DashboardView() {
     handleChecklistToggle,
     handleInventoryStatus,
     handleLogout,
+    refreshTabs,
   } = useDashboard();
 
   const {
     activities,
     categorySettings,
     customFields,
+    refreshAll,
     createActivity,
     updateActivity,
     deleteActivity,
@@ -111,6 +114,10 @@ export default function DashboardView() {
   const handleDelete = async (id: number) => {
     if (!confirm('기록을 안전하게 영구 삭제합니까?')) return;
     await deleteActivity(id);
+  };
+
+  const handlePullRefresh = async () => {
+    await Promise.all([refreshAll(), refreshTabs()]);
   };
 
   if (!familyCode || familyCode === 'undefined' || familyCode === 'null') {
@@ -235,7 +242,7 @@ export default function DashboardView() {
         </div>
       </aside>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {activeMenu === 'baby-log' && (
           <div className="space-y-4 animate-in fade-in duration-300">
             <div className="grid grid-cols-2 gap-3">
@@ -450,7 +457,7 @@ export default function DashboardView() {
             />
           </div>
         )}
-      </div>
+      </PullToRefresh>
 
       {formCategory && (
         <ActivityForm category={formCategory} customFields={customFields} existingActivity={editingActivity || undefined} onSubmit={handleFormSubmit} onClose={closeForm} />
