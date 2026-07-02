@@ -1,0 +1,50 @@
+name: Android Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'mobile-shell/**'
+      - 'package.json'
+      - '.github/workflows/android-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Capacitor native project
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # Unsigned debug APK, good enough to sideload on a real device for
+      # testing - production release builds will need a signing config once
+      # the app is ready for the Play Store.
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: peacock-time-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk

@@ -1,0 +1,67 @@
+workflows:
+  # Builds for the iOS Simulator only - no Apple Developer account or code
+  # signing needed. Good for verifying the app compiles/runs; the .app
+  # artifact can be dragged into a Simulator, not installed on a real iPhone.
+  ios-simulator-build:
+    name: iOS Simulator Build (no signing required)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Sync Capacitor iOS project
+        script: npx cap sync ios
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App
+          pod install
+      - name: Build for iOS Simulator
+        script: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            build
+    artifacts:
+      - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+
+  # For installing on a real iPhone: needs an Apple ID connected under
+  # Codemagic > Team settings > Code signing identities (a free personal
+  # Apple ID works for ad-hoc/development signing, a paid Apple Developer
+  # account ($99/yr) is needed for TestFlight). Uncomment and configure once
+  # that's set up - see https://docs.codemagic.io/yaml-code-signing/signing-ios/
+  #
+  # ios-device-build:
+  #   name: iOS Device Build (requires code signing setup)
+  #   max_build_duration: 30
+  #   instance_type: mac_mini_m2
+  #   environment:
+  #     node: 20
+  #     xcode: latest
+  #     cocoapods: default
+  #     ios_signing:
+  #       distribution_type: development
+  #       bundle_identifier: com.peacocktime.app
+  #   scripts:
+  #     - name: Install npm dependencies
+  #       script: npm ci
+  #     - name: Sync Capacitor iOS project
+  #       script: npx cap sync ios
+  #     - name: Install CocoaPods dependencies
+  #       script: |
+  #         cd ios/App
+  #         pod install
+  #     - name: Set up code signing
+  #       script: xcode-project use-profiles
+  #     - name: Build ipa
+  #       script: |
+  #         cd ios/App
+  #         xcode-project build-ipa --workspace App.xcworkspace --scheme App
+  #   artifacts:
+  #     - ios/App/build/ios/ipa/*.ipa
