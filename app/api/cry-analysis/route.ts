@@ -22,8 +22,6 @@ const RESPONSE_SCHEMA = {
         required: ['type', 'likelihood', 'reasoning'],
         additionalProperties: false,
       },
-      minItems: 1,
-      maxItems: 4,
     },
     summary: { type: 'string', description: 'One-line Korean summary of the overall interpretation' },
     emoji: { type: 'string', description: 'A single emoji representing the top interpretation' },
