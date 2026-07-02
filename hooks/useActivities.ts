@@ -16,12 +16,14 @@ import {
   analyzeCry as apiAnalyzeCry,
   fetchRecommendations,
   interpretVoiceCommand,
+  type CryNeed,
 } from '../services/activityService';
 import { getCategoryDef } from '../lib/activityCategories';
 import { summarizeActivity } from '../lib/activitySummary';
 import { speak } from '../services/tts';
 import { isNativeApp, ensureVoicePermission, listenOnceNative, stopNativeListening } from '../services/nativeVoice';
 import { primeNativePermissionsOnce } from '../services/nativePermissions';
+import { analyzeCryAudio } from '../lib/cryAcoustics';
 import type { Activity, CategorySettingEntry, CustomFieldDefinition, Recommendation } from '../types/activity';
 
 const activeActivityChannels = new Set<string>();
@@ -227,75 +229,49 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
     });
   };
 
-  // ---- Cry analysis (stateless, unchanged behavior) ----
+  // ---- Cry analysis: real acoustic feature extraction (F0 via
+  // autocorrelation, cry-burst rhythm, spectral brightness - see
+  // lib/cryAcoustics.ts) sent to Claude, which interprets it against
+  // published infant-cry acoustics research AND the family's own recent
+  // care log (hours since last feeding/diaper change, sleep status).
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStatusText, setRecordingStatusText] = useState('대기 중');
   const [cryAnalysisResult, setCryAnalysisResult] = useState<{
     emoji: string;
-    prediction: string;
-    avg_frequency: number;
-    max_decibel: number;
+    summary: string;
+    urgent: boolean;
+    needs: CryNeed[];
   } | null>(null);
 
   const startCryAnalysis = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const analyser = audioContext.createAnalyser();
-      const source = audioContext.createMediaStreamSource(stream);
-
-      source.connect(analyser);
-      analyser.fftSize = 2048;
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
       setIsRecording(true);
       setRecordingStatusText('🔴 수집 중');
 
-      let frequencies: number[] = [];
-      let maxVolume = 0;
+      const features = await analyzeCryAudio(6000);
+      setRecordingStatusText('🧠 분석 중');
 
-      const interval = setInterval(() => {
-        analyser.getByteFrequencyData(dataArray);
-        let localMax = 0;
-        let targetIdx = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          if (dataArray[i] > localMax) {
-            localMax = dataArray[i];
-            targetIdx = i;
-          }
-        }
-        const hz = (targetIdx * audioContext.sampleRate) / analyser.fftSize;
-        if (localMax > 30 && hz > 120) {
-          frequencies.push(hz);
-          if (localMax > maxVolume) maxVolume = localMax;
-        }
-      }, 100);
+      if (features.voicedRatio < 0.05) {
+        alert('소리가 너무 작거나 유효하지 않습니다.');
+        return;
+      }
 
-      setTimeout(async () => {
-        clearInterval(interval);
-        stream.getTracks().forEach((track) => track.stop());
-        setRecordingStatusText('대기 중');
-        setIsRecording(false);
-
-        const avgHz = frequencies.length > 0 ? frequencies.reduce((a, b) => a + b, 0) / frequencies.length : 0;
-        if (avgHz === 0) {
-          alert('소리가 너무 작거나 유효하지 않습니다.');
-          return;
-        }
-
-        const resData = await apiAnalyzeCry({ avg_frequency: Math.round(avgHz), max_decibel: maxVolume, familyCode: familyCode || undefined });
-        if (resData.success) {
-          setCryAnalysisResult({
-            emoji: resData.emoji,
-            prediction: resData.prediction,
-            avg_frequency: resData.avg_frequency,
-            max_decibel: resData.max_decibel,
-          });
-        }
-      }, 5000);
+      const resData = await apiAnalyzeCry({ features, familyCode: familyCode || undefined });
+      if (resData.success) {
+        setCryAnalysisResult({
+          emoji: resData.emoji,
+          summary: resData.summary,
+          urgent: resData.urgent,
+          needs: resData.needs,
+        });
+      } else {
+        alert(resData.error || '분석 중 오류가 발생했습니다.');
+      }
     } catch (err) {
       alert('마이크 권한 획득에 실패했습니다.');
+    } finally {
+      setRecordingStatusText('대기 중');
+      setIsRecording(false);
     }
   };
 

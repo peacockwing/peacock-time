@@ -55,8 +55,21 @@ export const fetchCategorySettings = async (familyCode: string) => {
 export const saveCategorySettings = async (familyCode: string, categories: { category: string; isEnabled: boolean; displayOrder: number }[]) =>
   fetchJson(API_PATHS.categorySettings, { method: 'PUT', body: JSON.stringify({ familyCode, categories }) });
 
-export const analyzeCry = async (payload: { avg_frequency: number; max_decibel: number; familyCode?: string }) =>
-  fetchJson(API_PATHS.cryAnalysis, { method: 'POST', body: JSON.stringify(payload) });
+export interface CryNeed {
+  type: string;
+  likelihood: 'high' | 'medium' | 'low';
+  reasoning: string;
+}
+
+export const analyzeCry = async (payload: { features: Record<string, any>; familyCode?: string }) =>
+  fetchJson(API_PATHS.cryAnalysis, { method: 'POST', body: JSON.stringify(payload) }) as Promise<{
+    success: boolean;
+    needs: CryNeed[];
+    summary: string;
+    emoji: string;
+    urgent: boolean;
+    error?: string;
+  }>;
 
 export const fetchRecommendations = async (familyCode: string) => {
   const res = await fetch(`${API_PATHS.recommendations}?familyCode=${encodeURIComponent(familyCode)}`, { cache: 'no-store' });

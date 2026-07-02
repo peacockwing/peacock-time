@@ -22,6 +22,25 @@ const GrowthChartView = dynamic(() => import('../activities/GrowthChartView'), {
   loading: () => <p className="text-center text-xs text-slate-500 py-10">불러오는 중…</p>,
 });
 
+const CRY_NEED_LABELS: Record<string, { label: string; emoji: string }> = {
+  HUNGER: { label: '배고픔', emoji: '🍼' },
+  SLEEPY: { label: '졸림/피곤함', emoji: '😴' },
+  DISCOMFORT: { label: '불편함', emoji: '😣' },
+  PAIN: { label: '통증/이상 신호', emoji: '🚨' },
+  GAS: { label: '가스/트림 필요', emoji: '💨' },
+  DIAPER: { label: '기저귀', emoji: '🧷' },
+  OVERSTIMULATION: { label: '과자극', emoji: '🌀' },
+  BOREDOM: { label: '지루함', emoji: '🧸' },
+  UNKNOWN: { label: '판단 어려움', emoji: '❓' },
+};
+
+const LIKELIHOOD_LABEL: Record<string, string> = { high: '높음', medium: '중간', low: '낮음' };
+const LIKELIHOOD_CLASS: Record<string, string> = {
+  high: 'bg-indigo-600 text-white',
+  medium: 'bg-slate-700 text-slate-200',
+  low: 'bg-slate-800 text-slate-400',
+};
+
 export default function DashboardView() {
   const {
     familyCode,
@@ -278,7 +297,7 @@ export default function DashboardView() {
             <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-inner">
               <div className="flex justify-between items-center">
                 <h3 className="text-xs font-black text-slate-400 tracking-wider uppercase flex items-center space-x-1.5">
-                  <span>🎙️</span> <span>AI 실시간 울음 주파수 분석기</span>
+                  <span>🎙️</span> <span>AI 울음 분석기</span>
                 </h3>
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${isRecording ? 'bg-rose-600 animate-pulse text-white' : 'bg-slate-800 text-slate-400'}`}>
                   {recordingStatusText}
@@ -290,18 +309,49 @@ export default function DashboardView() {
                 className="w-full bg-slate-800 border border-slate-700 text-slate-200 py-3 rounded-xl text-xs font-bold active:scale-98 transition-all hover:bg-slate-750 flex items-center justify-center space-x-2"
               >
                 <span>{isRecording ? '⏳' : '🎵'}</span>
-                <span>{isRecording ? '소리 주파수 정밀 포착 중... (5초)' : '울음소리 분석 기동 (5초 스마트 청취)'}</span>
+                <span>{isRecording ? '울음소리 분석 중... (6초)' : '울음소리 분석 기동 (6초 스마트 청취)'}</span>
               </button>
 
               {cryAnalysisResult && (
-                <div className="bg-indigo-950/40 border border-indigo-500/30 p-3 rounded-xl flex items-center space-x-3 animate-in slide-in-from-top-2 duration-300">
-                  <span className="text-2xl">{cryAnalysisResult.emoji}</span>
-                  <div className="flex-1">
-                    <p className="text-xs font-black text-indigo-300">{cryAnalysisResult.prediction}</p>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">
-                      평균: {cryAnalysisResult.avg_frequency}Hz | 볼륨: {cryAnalysisResult.max_decibel}pt
-                    </p>
+                <div
+                  className={`p-3 rounded-xl space-y-2.5 animate-in slide-in-from-top-2 duration-300 ${
+                    cryAnalysisResult.urgent ? 'bg-rose-950/40 border border-rose-500/40' : 'bg-indigo-950/40 border border-indigo-500/30'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl">{cryAnalysisResult.emoji}</span>
+                    <p className={`text-xs font-black flex-1 ${cryAnalysisResult.urgent ? 'text-rose-300' : 'text-indigo-300'}`}>{cryAnalysisResult.summary}</p>
                   </div>
+
+                  {cryAnalysisResult.urgent && (
+                    <p className="text-[10px] font-bold text-rose-300 bg-rose-900/40 rounded-lg px-2.5 py-1.5">
+                      🚨 통증에 가까운 울음 특징이 감지됐어요. 아기 상태를 바로 확인해보시고, 계속되면 소아과 상담을 권해요.
+                    </p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    {cryAnalysisResult.needs.map((need, i) => {
+                      const meta = CRY_NEED_LABELS[need.type] || CRY_NEED_LABELS.UNKNOWN;
+                      return (
+                        <div key={i} className="flex items-start gap-2 bg-slate-900/60 rounded-lg px-2.5 py-2">
+                          <span className="text-sm shrink-0">{meta.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-200">{meta.label}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${LIKELIHOOD_CLASS[need.likelihood]}`}>
+                                {LIKELIHOOD_LABEL[need.likelihood]}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{need.reasoning}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 leading-relaxed">
+                    ⓘ 의학적 진단이 아니며 참고용이에요. 평소와 다른 울음이 계속되면 소아과 상담을 권해요.
+                  </p>
                 </div>
               )}
             </div>
