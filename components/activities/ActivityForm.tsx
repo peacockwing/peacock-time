@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { getCategoryDef, type ActivityCategoryCode } from '../../lib/activityCategories';
+import { resizeImageForUpload } from '../../lib/imageResize';
 import type { Activity, CustomFieldDefinition } from '../../types/activity';
 
 // Formats a Date for an <input type="datetime-local"> value in local time.
@@ -29,18 +30,6 @@ const PHOTO_ANALYSIS_CATEGORIES = new Set([
   'WATER',
   'PLAY',
 ]);
-
-const fileToBase64 = (file: File): Promise<{ data: string; mediaType: string }> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const [, data] = result.split(',');
-      resolve({ data, mediaType: file.type || 'image/jpeg' });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 interface ActivityFormProps {
   category: ActivityCategoryCode | 'CUSTOM';
@@ -82,7 +71,7 @@ export default function ActivityForm({ category, customFields, existingActivity,
     setAnalyzing(true);
     setError(null);
     try {
-      const { data, mediaType } = await fileToBase64(file);
+      const { data, mediaType } = await resizeImageForUpload(file);
       const res = await fetch('/api/photo-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
