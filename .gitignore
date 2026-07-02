@@ -39,10 +39,6 @@ pnpm-debug.log*
 *.crt
 *.p12
 
-# Docker / containers
-.docker/
-docker-compose.override.yml
-
 # IDE / OS 추가
 Thumbs.db
 desktop.ini
