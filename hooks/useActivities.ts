@@ -245,6 +245,19 @@ export const useActivities = (familyCode: string | null, userEmail: string) => {
 
   const startCryAnalysis = async () => {
     try {
+      // getUserMedia (used inside analyzeCryAudio) is a raw Web API call -
+      // unlike the SpeechRecognition/Camera native plugins, it doesn't
+      // request the Android RECORD_AUDIO permission itself, so without this
+      // check it just fails silently in the native app the first time
+      // (same underlying permission the wake-word engine already gates on).
+      if (isNativeApp()) {
+        const granted = await ensureVoicePermission();
+        if (!granted) {
+          alert('마이크 권한이 필요해요. 휴대폰 설정 > 앱 > 피콕타임에서 마이크 접근을 허용해주세요.');
+          return;
+        }
+      }
+
       setIsRecording(true);
       setRecordingStatusText('🔴 수집 중');
 
