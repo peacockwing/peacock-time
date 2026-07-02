@@ -12,6 +12,14 @@ import ActivityFeed from '../activities/ActivityFeed';
 import CategorySettingsView from '../activities/CategorySettingsView';
 import RecommendationBar from '../activities/RecommendationBar';
 import AssistantChat from '../assistant/AssistantChat';
+import dynamic from 'next/dynamic';
+
+// recharts adds ~100kB to the bundle - only fetch it when the growth tab is
+// actually opened instead of paying that cost on every page load.
+const GrowthChartView = dynamic(() => import('../activities/GrowthChartView'), {
+  ssr: false,
+  loading: () => <p className="text-center text-xs text-slate-500 py-10">불러오는 중…</p>,
+});
 
 export default function DashboardView() {
   const {
@@ -123,6 +131,7 @@ export default function DashboardView() {
           {activeMenu === 'after-delivery' && '🚨 아빠 필수 미션'}
           {activeMenu === 'record-settings' && '⚙️ 기록 항목 설정'}
           {activeMenu === 'assistant' && '🤖 AI 도우미'}
+          {activeMenu === 'growth-chart' && '📏 성장 그래프'}
         </h1>
         <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-bold">🦚</div>
       </header>
@@ -204,6 +213,17 @@ export default function DashboardView() {
               }`}
             >
               <span>🤖</span> <span>AI 도우미</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveMenu('growth-chart');
+                setIsMenuOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3.5 rounded-xl text-xs font-bold flex items-center space-x-3 transition-all ${
+                activeMenu === 'growth-chart' ? 'bg-indigo-950 text-indigo-300 font-black' : 'text-slate-400 hover:bg-slate-900'
+              }`}
+            >
+              <span>📏</span> <span>성장 그래프</span>
             </button>
           </nav>
         </div>
@@ -415,6 +435,19 @@ export default function DashboardView() {
         {activeMenu === 'assistant' && familyCode && (
           <div className="animate-in fade-in duration-300 -mt-4">
             <AssistantChat familyCode={familyCode} userEmail={userEmail} />
+          </div>
+        )}
+
+        {activeMenu === 'growth-chart' && (
+          <div className="animate-in fade-in duration-300">
+            <GrowthChartView
+              activities={activities}
+              customFields={customFields}
+              onAddMeasurement={() => openQuickForm('GROWTH')}
+              onEdit={openEditForm}
+              onDelete={handleDelete}
+              onStop={handleStop}
+            />
           </div>
         )}
       </div>

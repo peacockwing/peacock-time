@@ -24,6 +24,7 @@ enum ActivityCategory {
   WATER
   PLAY
   TUMMY_TIME
+  GROWTH
   CUSTOM
 }
 
@@ -88,6 +89,7 @@ model ActivityLog {
   milk          MilkDetail?
   water         WaterDetail?
   play          PlayDetail?
+  growth        GrowthDetail?
   custom        CustomDetail?
 
   @@index([family_code, category, start_time(sort: Desc)])
@@ -234,6 +236,19 @@ model PlayDetail {
   play_type   String?
 
   @@map("play_detail")
+}
+
+// 성장 (growth) - height/weight measurements over time. `source` is reserved
+// for future measuring-device integration (e.g. a smart scale reporting
+// readings automatically) - manual entries just default to 'MANUAL'.
+model GrowthDetail {
+  activity_id BigInt      @id
+  activity    ActivityLog @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  height_cm   Float?
+  weight_kg   Float?
+  source      String      @default("MANUAL")
+
+  @@map("growth_detail")
 }
 
 // 17. 커스텀 (custom) - a family defines its own tracked item (name + unit +

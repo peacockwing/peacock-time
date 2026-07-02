@@ -20,7 +20,8 @@ export type ActivityCategoryCode =
   | 'MILK'
   | 'WATER'
   | 'PLAY'
-  | 'TUMMY_TIME';
+  | 'TUMMY_TIME'
+  | 'GROWTH';
 
 // 'tags' fields are stored as a plain space/comma-separated string while the
 // form is open (same pattern as the hashtag input) and only split into a
@@ -228,6 +229,15 @@ export const ACTIVITY_CATEGORIES: CategoryDef[] = [
     label: '터미타임',
     emoji: '🐸',
     fields: [],
+  },
+  {
+    code: 'GROWTH',
+    label: '성장',
+    emoji: '📏',
+    fields: [
+      { key: 'height_cm', label: '키', type: 'number', unit: 'cm' },
+      { key: 'weight_kg', label: '몸무게', type: 'number', unit: 'kg' },
+    ],
   },
 ];
 

@@ -56,6 +56,8 @@ export const summarizeActivity = (activity: Activity, customFields: CustomFieldD
       return d.play_type || '놀이';
     case 'TUMMY_TIME':
       return '터미타임';
+    case 'GROWTH':
+      return [d.height_cm ? `${d.height_cm}cm` : null, d.weight_kg ? `${d.weight_kg}kg` : null].filter(Boolean).join(' · ') || '성장';
     case 'CUSTOM': {
       const def = customFields.find((c) => c.id === d.definition_id);
       const value = d.value_number ?? d.value_text;
