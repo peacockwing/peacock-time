@@ -10,7 +10,10 @@ const fieldToJsonSchema = (field: CategoryFieldDef) => {
     return { type: ['number', 'null'], description };
   }
   if (field.type === 'select') {
-    return { type: ['string', 'null'], enum: [...(field.options || []).map((o) => o.value), null], description };
+    return {
+      anyOf: [{ type: 'string', enum: (field.options || []).map((o) => o.value) }, { type: 'null' }],
+      description,
+    };
   }
   if (field.type === 'tags') {
     return { type: 'array', items: { type: 'string' }, description: `${description} - 각 항목을 개별 문자열로` };

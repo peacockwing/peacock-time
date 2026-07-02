@@ -20,7 +20,10 @@ async function classifyCategory(anthropic: ReturnType<typeof getAnthropic>, tran
         schema: {
           type: 'object',
           properties: {
-            category: { type: ['string', 'null'], enum: [...CATEGORY_CODES, null], description: 'Which category this voice command is logging, or null if it does not match any' },
+            category: {
+              anyOf: [{ type: 'string', enum: CATEGORY_CODES }, { type: 'null' }],
+              description: 'Which category this voice command is logging, or null if it does not match any',
+            },
             confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
           },
           required: ['category', 'confidence'],
