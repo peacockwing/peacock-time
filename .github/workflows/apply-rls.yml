@@ -1,4 +1,4 @@
-name: Apply Supabase RLS
+name: Apply Supabase RLS and Realtime Config
 
 on:
   workflow_dispatch:
@@ -24,3 +24,10 @@ jobs:
           fi
           echo "Applying deploy/supabase/rls_policies.sql"
           psql "$DB_CONNECTION_STRING" -f deploy/supabase/rls_policies.sql
+
+      - name: Apply Realtime publication config
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          echo "Applying deploy/supabase/realtime_publication.sql"
+          psql "$DB_CONNECTION_STRING" -f deploy/supabase/realtime_publication.sql

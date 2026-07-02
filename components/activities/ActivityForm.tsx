@@ -11,6 +11,22 @@ const toLocalInputValue = (iso?: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// Categories with a photo-analysis endpoint wired up (lib/activityCategories.ts
+// field keys must match what /api/photo-analysis returns for that category).
+const PHOTO_ANALYSIS_CATEGORIES = new Set(['FORMULA', 'DIAPER']);
+
+const fileToBase64 = (file: File): Promise<{ data: string; mediaType: string }> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [, data] = result.split(',');
+      resolve({ data, mediaType: file.type || 'image/jpeg' });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 interface ActivityFormProps {
   category: ActivityCategoryCode | 'CUSTOM';
   customFields: CustomFieldDefinition[];
@@ -39,8 +55,42 @@ export default function ActivityForm({ category, customFields, existingActivity,
   );
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [analyzing, setAnalyzing] = React.useState(false);
 
   const setField = (key: string, value: any) => setFields((prev) => ({ ...prev, [key]: value }));
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || category === 'CUSTOM') return;
+
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const { data, mediaType } = await fileToBase64(file);
+      const res = await fetch('/api/photo-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, imageBase64: data, mediaType }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || '사진 분석에 실패했습니다.');
+
+      const result = json.result as Record<string, any>;
+      setFields((prev) => {
+        const next = { ...prev };
+        for (const [key, value] of Object.entries(result)) {
+          if (key === 'confidence' || value === null || value === undefined) continue;
+          next[key] = value;
+        }
+        return next;
+      });
+    } catch (err: any) {
+      setError(err.message || '사진 분석 중 오류가 발생했습니다.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const selectedCustomDef = customFields.find((c) => c.id === customDefinitionId);
 
@@ -90,6 +140,14 @@ export default function ActivityForm({ category, customFields, existingActivity,
             닫기 ✕
           </button>
         </div>
+
+        {PHOTO_ANALYSIS_CATEGORIES.has(category) && (
+          <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-950/20 py-3 text-xs font-bold text-indigo-300 active:scale-98 transition-transform cursor-pointer">
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} disabled={analyzing} />
+            <span>{analyzing ? '⏳' : '📷'}</span>
+            <span>{analyzing ? '사진 분석 중…' : '사진으로 자동입력'}</span>
+          </label>
+        )}
 
         {category === 'CUSTOM' && (
           <div className="space-y-1.5">
