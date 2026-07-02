@@ -14,6 +14,7 @@ import { speak } from '../../services/tts';
 interface AssistantChatProps {
   familyCode: string;
   userEmail?: string | null;
+  onClose?: () => void;
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -23,7 +24,7 @@ const EXAMPLE_QUESTIONS = [
   '어제 분유 몇 번 먹었어?',
 ];
 
-export default function AssistantChat({ familyCode, userEmail }: AssistantChatProps) {
+export default function AssistantChat({ familyCode, userEmail, onClose }: AssistantChatProps) {
   const [conversations, setConversations] = React.useState<AssistantConversationSummary[]>([]);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [activeTitle, setActiveTitle] = React.useState<string>('새 대화');
@@ -189,7 +190,7 @@ export default function AssistantChat({ familyCode, userEmail }: AssistantChatPr
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-7rem)] -mx-4 -mb-4 overflow-hidden">
+    <div className="relative flex h-full overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
       )}
@@ -248,6 +249,11 @@ export default function AssistantChat({ familyCode, userEmail }: AssistantChatPr
           >
             {voiceOutputOn ? '🔊' : '🔇'}
           </button>
+          {onClose && (
+            <button onClick={onClose} className="shrink-0 rounded-xl px-2.5 py-1.5 text-sm text-slate-400 hover:text-white">
+              ✕
+            </button>
+          )}
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 py-3">

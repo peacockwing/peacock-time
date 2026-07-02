@@ -96,6 +96,7 @@ export default function DashboardView() {
 
   const [formCategory, setFormCategory] = React.useState<ActivityCategoryCode | 'CUSTOM' | null>(null);
   const [editingActivity, setEditingActivity] = React.useState<Activity | null>(null);
+  const [isAssistantOpen, setIsAssistantOpen] = React.useState(false);
 
   const openQuickForm = (category: ActivityCategoryCode | 'CUSTOM') => {
     setEditingActivity(null);
@@ -156,7 +157,6 @@ export default function DashboardView() {
           {activeMenu === 'prep-list' && '🎁 출산 인벤토리'}
           {activeMenu === 'after-delivery' && '🚨 아빠 필수 미션'}
           {activeMenu === 'record-settings' && '⚙️ 기록 항목 설정'}
-          {activeMenu === 'assistant' && '🤖 AI 도우미'}
           {activeMenu === 'growth-chart' && '📏 성장 그래프'}
         </h1>
         <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-bold">🦚</div>
@@ -228,17 +228,6 @@ export default function DashboardView() {
               }`}
             >
               <span>⚙️</span> <span>기록 항목 설정</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveMenu('assistant');
-                setIsMenuOpen(false);
-              }}
-              className={`w-full text-left px-4 py-3.5 rounded-xl text-xs font-bold flex items-center space-x-3 transition-all ${
-                activeMenu === 'assistant' ? 'bg-indigo-950 text-indigo-300 font-black' : 'text-slate-400 hover:bg-slate-900'
-              }`}
-            >
-              <span>🤖</span> <span>AI 도우미</span>
             </button>
             <button
               onClick={() => {
@@ -489,12 +478,6 @@ export default function DashboardView() {
           </div>
         )}
 
-        {activeMenu === 'assistant' && familyCode && (
-          <div className="animate-in fade-in duration-300 -mt-4">
-            <AssistantChat familyCode={familyCode} userEmail={userEmail} />
-          </div>
-        )}
-
         {activeMenu === 'growth-chart' && (
           <div className="animate-in fade-in duration-300">
             <GrowthChartView
@@ -511,6 +494,22 @@ export default function DashboardView() {
 
       {formCategory && (
         <ActivityForm category={formCategory} customFields={customFields} existingActivity={editingActivity || undefined} onSubmit={handleFormSubmit} onClose={closeForm} />
+      )}
+
+      {!isAssistantOpen && (
+        <button
+          onClick={() => setIsAssistantOpen(true)}
+          aria-label="AI 도우미 열기"
+          className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-indigo-500 shadow-lg shadow-indigo-950/60 flex items-center justify-center text-2xl active:scale-95 transition-transform"
+        >
+          🤖
+        </button>
+      )}
+
+      {isAssistantOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900 max-w-md mx-auto">
+          <AssistantChat familyCode={familyCode} userEmail={userEmail} onClose={() => setIsAssistantOpen(false)} />
+        </div>
       )}
 
       <style jsx global>{`

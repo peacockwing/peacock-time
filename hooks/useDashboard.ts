@@ -14,7 +14,7 @@ export const useDashboard = () => {
   const [familyCode, setFamilyCode] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('parent@example.com');
   const [userName, setUserName] = useState<string>('보호자');
-  const [activeMenu, setActiveMenu] = useState<'baby-log' | 'prep-list' | 'after-delivery' | 'record-settings' | 'assistant' | 'growth-chart'>('baby-log');
+  const [activeMenu, setActiveMenu] = useState<'baby-log' | 'prep-list' | 'after-delivery' | 'record-settings' | 'growth-chart'>('baby-log');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
